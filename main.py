@@ -20,21 +20,22 @@ def main():
     # Hyperparameter grid
     learning_rates = [0.001, 0.01, 0.1]
     epoch_list = [100, 500, 1000]
+    reg_list = [0, 0.01, 0.1]
 
     # Grid search
     print("🔍 Starting hyperparameter tuning...")
-    best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, learning_rates, epoch_list)
+    best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, learning_rates, epoch_list, reg_list)
 
     print(f"✅ Best hyperparameters: {best_params}, CV Accuracy: {best_score:.4f}")
 
     # Final model training
-    model = LogisticRegressionScratch(learning_rate=best_params["learning_rate"])
+    model = LogisticRegressionScratch(learning_rate=best_params["learning_rate"], regularization_strength=best_params["regularization_strength"])
     model.fit(X_train, y_train, epochs=best_params["epochs"])
     pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, pred)
 
     # Compare it with the sklearn model
-    model_sk = LogisticRegression(solver='newton-cg', max_iter=150)
+    model_sk = LogisticRegression(penalty=None, solver='lbfgs', max_iter=150)
     model_sk.fit(X_train, y_train)
     pred2 = model_sk.predict(X_test)
     accuracy2 = accuracy_score(y_test, pred2)
