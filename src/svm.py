@@ -1,26 +1,55 @@
 import numpy as np
 
 class SVMClassifierScratch:
-    def __init__(self, lambda_=0.01, max_iter=1000):
+    """
+    Linear SVM classifier trained with the Pegasos algorithm.
+    Hyperparameters:
+      - lambda_: regularization strength
+      - epochs: number of iterations over the training data
+    """
+    def __init__(self, lambda_=0.01):
         self.lambda_ = lambda_
-        self.max_iter = max_iter
-        self.w = None
+        self.weights = None
+        self.bias = 0
 
-    def fit(self, X, y):
+    def fit(self, X, y, epochs=1000):
+        """
+        Train the linear SVM using Pegasos update.
+        X: np.ndarray of shape (n_samples, n_features)
+        y: binary labels {0,1} converted internally to {-1,1}
+        epochs: total number of SGD updates
+        """
         n_samples, n_features = X.shape
-        self.w = np.zeros(n_features)
+        # Initialize weight vector
+        self.weights = np.zeros(n_features)
+        self.bias = 0
 
-        for t in range(1, self.max_iter + 1):
+        # Convert labels to -1 and +1
+        y_transformed = np.where(y == 1, 1, -1)
+
+        for t in range(1, epochs + 1):
+            # Sample a random index
             i = np.random.randint(0, n_samples)
-            x_i, y_i = X[i], y[i]
+            x_i = X[i]
+            y_i = y_transformed[i]
 
-            eta = 1 / (self.lambda_ * t)
-            condition = y_i * np.dot(self.w, x_i) < 1
+            # Learning rate schedule
+            eta = 1.0 / (self.lambda_ * t)
 
+            # Check hinge loss condition
+            condition = y_i * (np.dot(self.weights, x_i) + self.bias) < 1
             if condition:
-                self.w = (1 - eta * self.lambda_) * self.w + eta * y_i * x_i
+                # Update with misclassification
+                self.weights = (1 - eta * self.lambda_) * self.weights + eta * y_i * x_i
+                self.bias += eta * y_i
             else:
-                self.w = (1 - eta * self.lambda_) * self.w
+                # Only regularization update
+                self.weights = (1 - eta * self.lambda_) * self.weights
 
     def predict(self, X):
-        return np.sign(np.dot(X, self.w))
+        """
+        Predict labels for X. Returns array of {0,1}.
+        """
+        scores = np.dot(X, self.weights) + self.bias
+        preds = np.where(scores >= 0, 1, 0)
+        return preds
