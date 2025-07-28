@@ -2,8 +2,8 @@ import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from src.logistic_regression import LogisticRegressionScratch
 from src.svm import SVMClassifierScratch
-from src.kernels import rbf_kernel, polynomial_kernel, KernelSVM, KernelLogisticRegression
-from src.hyperparameter_tuning import grid_search, grid_search_svm
+from src.kernels import rbf_kernel, polynomial_kernel, KernelPegasosSVM, NamedKernel, create_named_kernels
+from src.hyperparameter_tuning import grid_search, grid_search_svm, grid_search_kernel
 from sklearn.linear_model import LogisticRegression  # benchmark
 from sklearn.svm import SVC  # benchmark
 from sklearn.metrics import accuracy_score  # evaluation
@@ -17,9 +17,9 @@ def main():
 
     '''Logistic Regression'''
     lr_grid = {
-        "learning_rate": [0.001, 0.01, 0.1],
-        "regularization_strength": [0, 0.01, 0.1],
-        "epochs": [500, 1000]
+        "learning_rate": [0.001, 0.01, 0.05, 0.1, 0.5],
+        "regularization_strength": [0, 0.01, 0.1, 0.5],
+        "epochs": [500, 1000, 2000]
     }
 
     print("🔍 Grid search for Logistic Regression...")
@@ -45,8 +45,8 @@ def main():
     '''Kernel Logistic Regression'''
 
 
-    '''Linear SVM (Pegasos)'''
-    print("\n🔍 Starting Linear SVM (Pegasos) hyperparameter tuning...")
+    '''Linear SVM'''
+    print("\n🔍 Starting Linear SVM hyperparameter tuning...")
     lambda_list = [0.001, 0.01, 0.1]
     max_iter_list = [100, 500, 1000]
 
@@ -67,6 +67,27 @@ def main():
     print(f"✅ Linear SVM (sklearn) Accuracy: {acc_svm_sk:.4f}")
 
     '''Kernel SVM'''
+    gamma_values = [0.001, 0.01, 0.1]
+    degree_values = [2, 3, 4]
+    coef0_values = [0, 1, 10]
+
+    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
+
+    param_grid = {
+        "kernel_fn": named_kernels,
+        "lambda_": [0.01, 0.1],
+        "max_iter": [500, 1000]
+    }
+
+    best_params_ksvm, best_score_ksvm = grid_search_kernel(X_train, y_train, KernelPegasosSVM, param_grid)
+    print(f"🏆 Best Kernel Pegasos Params: {best_params_ksvm}, CV Accuracy: {best_score_ksvm:.4f}")
+
+    ksvm = KernelPegasosSVM(kernel_fn=best_params_ksvm["kernel_fn"], lambda_=best_params_ksvm["lambda_"], max_iter=best_params_ksvm["max_iter"])
+    ksvm.fit(X_train, y_train)
+    ksvm_preds = ksvm.predict(X_test)
+    acc_ksvm = accuracy_score(y_test, ksvm_preds)
+
+    print(f"✅ Kernel SVM from Scratch Accuracy: {acc_ksvm:.4f}")
 
 
 if __name__ == "__main__":
