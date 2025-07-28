@@ -16,7 +16,7 @@ def cross_validate(X, y, model_class, model_params, k_folds=5, epochs=100):
         X_val, y_val = X[val_idx], y[val_idx]
 
         model = model_class(**model_params)
-        model.fit(X_train, y_train, epochs=epochs)
+        model.fit(X_train, y_train)
         preds = model.predict(X_val)
         acc = accuracy_score(y_val, preds)
         scores.append(acc)

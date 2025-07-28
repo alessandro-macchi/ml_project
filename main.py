@@ -1,6 +1,7 @@
 import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from src.logistic_regression import LogisticRegressionScratch
+from src.lr_pegasos import LogisticRegressionScratch2
 from src.svm import SVMClassifierScratch
 from src.kernels import rbf_kernel, polynomial_kernel, KernelSVM, KernelLogisticRegression
 from src.hyperparameter_tuning import grid_search, grid_search_svm
@@ -23,15 +24,15 @@ def main():
     }
 
     print("🔍 Grid search for Logistic Regression...")
-    best_params_lr, best_score_lr = grid_search(X_train, y_train, LogisticRegressionScratch, lr_grid["learning_rate"],
+    best_params_lr, best_score_lr = grid_search(X_train, y_train, LogisticRegressionScratch2, lr_grid["learning_rate"],
                                     lr_grid["epochs"], lr_grid["regularization_strength"])
     print(f"✅ Best Logistic Regression params: {best_params_lr}, CV Accuracy: {best_score_lr:.4f}")
 
-    model_lr = LogisticRegressionScratch(
+    model_lr = LogisticRegressionScratch2(
         learning_rate=best_params_lr["learning_rate"],
         regularization_strength=best_params_lr["regularization_strength"]
     )
-    model_lr.fit(X_train, y_train, epochs=best_params_lr["epochs"])
+    model_lr.fit(X_train, y_train)
     pred_lr = model_lr.predict(X_test)
     acc_lr = accuracy_score(y_test, pred_lr)
 
