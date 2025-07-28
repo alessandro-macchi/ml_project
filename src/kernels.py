@@ -9,6 +9,96 @@ def rbf_kernel(x, y, gamma=0.1):
 def polynomial_kernel(x, y, degree=3, coef0=1):
     return (np.dot(x, y) + coef0) ** degree
 
+def sigmoid(z):
+    """Sigmoid function with numerical stability"""
+    z = np.clip(z, -500, 500)  # Prevent overflow
+    return np.where(z >= 0,
+                    1 / (1 + np.exp(-z)),
+                    np.exp(z) / (1 + np.exp(z)))
+
+
+class KernelLogisticRegression:
+    """
+    Kernelized Logistic Regression using Pegasos-style SGD updates.
+    This follows the same pattern as your KernelSVM but with logistic loss.
+    """
+
+    def __init__(self, kernel_fn, lambda_=0.01, max_iter=1000, learning_rate=None):
+        self.kernel_fn = kernel_fn
+        self.lambda_ = lambda_
+        self.max_iter = max_iter
+        self.learning_rate = learning_rate  # If None, uses adaptive schedule
+        self.support_vectors = []
+        self.alphas = []  # coefficients for each support vector
+
+    def fit(self, X, y):
+        n_samples = X.shape[0]
+        # Convert labels to {-1, +1} to match your linear version
+        y = np.where(y <= 0, -1, 1)
+
+        for t in range(1, self.max_iter + 1):
+            # Sample random training example
+            i = np.random.randint(0, n_samples)
+            x_t = X[i]
+            y_t = y[i]
+
+            # Compute current prediction g_t(x_t)
+            if len(self.support_vectors) == 0:
+                g_x_t = 0
+            else:
+                g_x_t = sum(
+                    alpha * self.kernel_fn(sv, x_t)
+                    for alpha, sv in zip(self.alphas, self.support_vectors)
+                )
+
+            # Learning rate schedule (similar to your linear version)
+            if self.learning_rate is None:
+                eta_t = 1.0 / np.sqrt(t)  # Or use 1/(lambda*t) like Pegasos
+            else:
+                eta_t = self.learning_rate
+
+            # Decay existing coefficients: α_i := (1 - η_t λ) α_i
+            decay_factor = 1 - eta_t * self.lambda_
+            self.alphas = [decay_factor * alpha for alpha in self.alphas]
+
+            # Compute sigmoid weight: σ(-y_t * g_t(x_t))
+            margin = y_t * g_x_t
+            sigmoid_weight = sigmoid(-margin)
+
+            # Add new support vector with coefficient: η_t * σ(-y_t g_t(x_t)) * y_t
+            alpha_t = eta_t * sigmoid_weight * y_t
+
+            # Only add if coefficient is significant (for sparsity)
+            if abs(alpha_t) > 1e-8:
+                self.support_vectors.append(x_t.copy())
+                self.alphas.append(alpha_t)
+
+    def decision_function(self, X):
+        """Compute the decision function g(x)"""
+        if len(self.support_vectors) == 0:
+            return np.zeros(X.shape[0])
+
+        decisions = []
+        for x in X:
+            g_x = sum(
+                alpha * self.kernel_fn(sv, x)
+                for alpha, sv in zip(self.alphas, self.support_vectors)
+            )
+            decisions.append(g_x)
+        return np.array(decisions)
+
+    def predict_proba(self, X):
+        """Predict class probabilities"""
+        decisions = self.decision_function(X)
+        probas_pos = sigmoid(decisions)
+        return np.column_stack([1 - probas_pos, probas_pos])
+
+    def predict(self, X):
+        """Predict class labels"""
+        decisions = self.decision_function(X)
+        # Convert back to {0, 1} to match your data format
+        return np.where(decisions >= 0, 1, 0)
+
 class KernelPegasosSVM:
     def __init__(self, kernel_fn, lambda_=0.01, max_iter=1000):
         self.kernel_fn = kernel_fn

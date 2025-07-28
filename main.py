@@ -2,7 +2,7 @@ import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from src.logistic_regression import LogisticRegressionScratch
 from src.svm import SVMClassifierScratch
-from src.kernels import rbf_kernel, polynomial_kernel, KernelPegasosSVM, NamedKernel, create_named_kernels
+from src.kernels import KernelLogisticRegression, KernelPegasosSVM, create_named_kernels
 from src.hyperparameter_tuning import grid_search, grid_search_svm, grid_search_kernel
 from sklearn.linear_model import LogisticRegression  # benchmark
 from sklearn.svm import SVC  # benchmark
@@ -43,7 +43,38 @@ def main():
     print(f"✅ Logistic Regression (sklearn) Accuracy: {acc_lr_sk:.4f}")
 
     '''Kernel Logistic Regression'''
+    print("\n🔍 Starting Kernel Logistic Regression hyperparameter tuning...")
 
+    # Create kernel functions (same as for SVM)
+    gamma_values = [0.001, 0.01, 0.1]
+    degree_values = [2, 3, 4]
+    coef0_values = [0, 1, 10]
+
+    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
+
+    # Parameter grid for kernel logistic regression
+    klr_param_grid = {
+        "kernel_fn": named_kernels,
+        "lambda_": [0.01, 0.1, 0.5],
+        "max_iter": [500, 1000]
+    }
+
+    # Grid search for kernel logistic regression
+    best_params_klr, best_score_klr = grid_search_kernel(X_train, y_train, KernelLogisticRegression, klr_param_grid)
+    print(f"🏆 Best Kernel Logistic Regression Params: {best_params_klr}, CV Accuracy: {best_score_klr:.4f}")
+
+    # Train the best kernel logistic regression model
+    klr = KernelLogisticRegression(
+        kernel_fn=best_params_klr["kernel_fn"],
+        lambda_=best_params_klr["lambda_"],
+        max_iter=best_params_klr["max_iter"]
+    )
+    klr.fit(X_train, y_train)
+    klr_preds = klr.predict(X_test)
+    acc_klr = accuracy_score(y_test, klr_preds)
+
+    print(f"✅ Kernel Logistic Regression from Scratch Accuracy: {acc_klr:.4f}")
+    print(f"📊 Number of support vectors: {len(klr.support_vectors)}")
 
     '''Linear SVM'''
     print("\n🔍 Starting Linear SVM hyperparameter tuning...")
