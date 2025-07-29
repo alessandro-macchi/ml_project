@@ -1,13 +1,17 @@
 import numpy as np
 
+
 def linear_kernel(X1, X2):
     return X1 @ X2.T
+
 
 def rbf_kernel(x, y, gamma=0.1):
     return np.exp(-gamma * np.linalg.norm(x - y) ** 2)
 
+
 def polynomial_kernel(x, y, degree=3, coef0=1):
     return (np.dot(x, y) + coef0) ** degree
+
 
 def sigmoid(z):
     """Sigmoid function with numerical stability"""
@@ -15,6 +19,7 @@ def sigmoid(z):
     return np.where(z >= 0,
                     1 / (1 + np.exp(-z)),
                     np.exp(z) / (1 + np.exp(z)))
+
 
 #KernelLogisticRegression
 
