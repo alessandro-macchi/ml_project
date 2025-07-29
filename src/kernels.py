@@ -31,7 +31,10 @@ class KernelLogisticRegression:
         self.support_vectors = []
         self.alphas = []  # coefficients for each support vector
 
-    def fit(self, X, y):
+    def fit(self, X, y, max_iter=None):
+        if max_iter is not None:
+            self.max_iter = max_iter
+
         n_samples = X.shape[0]
         # Convert labels to {-1, +1} to match your linear version
         y = np.where(y <= 0, -1, 1)
@@ -109,7 +112,10 @@ class KernelPegasosSVM:
         self.alphas = []  # alpha_i = y_i / (λ t)
         self.coeff_decay = []  # store (1 - 1/t) coefficients
 
-    def fit(self, X, y):
+    def fit(self, X, y, max_iter=None):
+        if max_iter is not None:
+            self.max_iter = max_iter
+
         n_samples = X.shape[0]
 
         for t in range(1, self.max_iter + 1):

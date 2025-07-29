@@ -12,12 +12,12 @@ class SVMClassifierScratch:
         self.weights = None
         self.bias = 0
 
-    def fit(self, X, y, epochs=1000):
+    def fit(self, X, y, max_iter=1000):
         """
         Train the linear SVM using Pegasos update.
         X: np.ndarray of shape (n_samples, n_features)
         y: binary labels {0,1} converted internally to {-1,1}
-        epochs: total number of SGD updates
+        max_iter: total number of SGD updates
         """
         n_samples, n_features = X.shape
         # Initialize weight vector
@@ -27,7 +27,7 @@ class SVMClassifierScratch:
         # Convert labels to -1 and +1
         y_transformed = np.where(y == 1, 1, -1)
 
-        for t in range(1, epochs + 1):
+        for t in range(1, max_iter + 1):
             # Sample a random index
             i = np.random.randint(0, n_samples)
             x_i = X[i]

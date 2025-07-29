@@ -47,5 +47,3 @@ def grid_search(X, y, model_class, param_grid, k_folds=5):
         print("❌ All parameter combinations failed in grid search.")
 
     return best_params, best_score
-
-
