@@ -48,8 +48,8 @@ def main():
 
     # Create kernel functions
     gamma_values = [0.001, 0.01, 0.1]
-    degree_values = [2, 3, 4]
-    coef0_values = [0, 1, 10]
+    degree_values = [] #2, 3, 4
+    coef0_values = [] #0, 1, 10
     named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
 
     # Parameter grid for kernel logistic regression
@@ -59,22 +59,25 @@ def main():
         "epochs": [500, 1000]
     }
 
-    # Grid search for kernel logistic regression
     best_params_klr, best_score_klr = grid_search(X_train, y_train, KernelLogisticRegression, klr_param_grid)
     print(f"🏆 Best Kernel Logistic Regression Params: {best_params_klr}, CV Accuracy: {best_score_klr:.4f}")
 
-    # Train the best kernel logistic regression model
+    # Train the best model
     klr = KernelLogisticRegression(
-        kernel=best_params_klr["kernel_fn"]["kernel"],
+        kernel=best_params_klr["kernel"],
         lambda_=best_params_klr["lambda_"],
-        epochs=best_params_klr["epochs"]
+        epochs=best_params_klr["epochs"],
+        subsample_ratio=0.2,  # Use only 20% of training data as support vectors
+        batch_size=64,        # Reasonable batch size
+        early_stopping_patience=20
     )
+
     klr.fit(X_train, y_train)
     klr_preds = klr.predict(X_test)
     acc_klr = accuracy_score(y_test, klr_preds)
 
     print(f"✅ Kernel Logistic Regression from Scratch Accuracy: {acc_klr:.4f}")
-    """
+
     '''Linear SVM'''
     print("\n🔍 Starting Linear SVM hyperparameter tuning...")
 
@@ -92,10 +95,10 @@ def main():
 
     l_svm_sk = SVC(kernel='linear', C=1.0)
     l_svm_sk.fit(X_train, y_train)
-    l_acc_svm_sk = accuracy_score(y_test, l_svm_sk.predict(X_test))
+    acc_l_svm_sk = accuracy_score(y_test, l_svm_sk.predict(X_test))
 
     print(f"✅ Linear SVM from Scratch Accuracy: {acc_svm:.4f}")
-    print(f"✅ Linear SVM (sklearn) Accuracy: {l_acc_svm_sk:.4f}")
+    print(f"✅ Linear SVM (sklearn) Accuracy: {acc_l_svm_sk:.4f}")
 
     '''Kernel SVM'''
     print("\n🔍 Starting Kernel SVM hyperparameter tuning...")
@@ -124,18 +127,18 @@ def main():
     
     print(f"✅ Kernel SVM from Scratch Accuracy: {acc_ksvm:.4f}")
     print(f"📊 Number of support vectors: {len(ksvm.support_vectors)}")
-    """
+
     rbf_svm_sk = SVC(kernel='rbf', C=1.0)
     rbf_svm_sk.fit(X_train, y_train)
-    rbf_acc_svm_sk = accuracy_score(y_test, rbf_svm_sk.predict(X_test))
+    acc_rbf_svm_sk = accuracy_score(y_test, rbf_svm_sk.predict(X_test))
 
-    print(f"✅ Kernel RBF SVM from Scratch Accuracy: {rbf_acc_svm_sk:.4f}")
+    print(f"✅ Kernel RBF SVM from Scratch Accuracy: {acc_rbf_svm_sk:.4f}")
 
     poly_svm_sk = SVC(kernel='poly', C=1.0)
     poly_svm_sk.fit(X_train, y_train)
-    poly_acc_svm_sk = accuracy_score(y_test, poly_svm_sk.predict(X_test))
+    acc_poly_svm_sk = accuracy_score(y_test, poly_svm_sk.predict(X_test))
 
-    print(f"✅ Kernel Poly SVM from Scratch Accuracy: {poly_acc_svm_sk:.4f}")
+    print(f"✅ Kernel Poly SVM from Scratch Accuracy: {acc_poly_svm_sk:.4f}")
 
     '''Summary'''
     print("\n" + "=" * 50)
@@ -145,7 +148,7 @@ def main():
     print(f"Linear Logistic Regression (sklearn): {acc_lr_sk:.4f}")
     print(f"Kernel Logistic Regression (Scratch): {acc_klr:.4f}")
     print(f"Linear SVM (Scratch): {acc_svm:.4f}")
-    print(f"Linear SVM (sklearn): {acc_svm_sk:.4f}")
+    print(f"Linear SVM (sklearn): {acc_l_svm_sk:.4f}")
     print(f"Kernel SVM (Scratch): {acc_ksvm:.4f}")
     print("=" * 50)
 
