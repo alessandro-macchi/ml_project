@@ -48,12 +48,36 @@ def custom_train_test_split(X, y, test_size=0.2, random_state=None, stratify=Non
 
     return X.iloc[train_indices], X.iloc[test_indices], y[train_indices], y[test_indices]
 
+def euclidean_distance(a, b):
+    return np.sqrt(np.sum((a - b) ** 2))
 
-def preprocess_features(df: pd.DataFrame) -> tuple:
+def generate_synthetic_samples(X_minority_df, N, k=5):
+    X_minority = X_minority_df.values  # convert once for easier math
+    synthetic_samples = []
+
+    for _ in range(N):
+        i = np.random.randint(0, len(X_minority))
+        x_i = X_minority[i]
+
+        # Find k nearest neighbors
+        distances = [euclidean_distance(x_i, x_j) for j, x_j in enumerate(X_minority) if j != i]
+        neighbors_idx = np.argsort(distances)[:k]
+        neighbors = [X_minority[j] for j in neighbors_idx]
+
+        x_nn = neighbors[np.random.randint(0, k)]
+
+        gap = np.random.rand()
+        synthetic = x_i + gap * (x_nn - x_i)
+        synthetic_samples.append(synthetic)
+
+    return np.array(synthetic_samples)
+
+
+def preprocess_features(df: pd.DataFrame, apply_smote=False) -> tuple:
     """Preprocess wine dataset features and split into train/test sets."""
     df["quality_binary"] = (df["quality"] >= 6).astype(int)
 
-    # Log-transform skewed features BEFORE splitting (safe)
+    # Log-transform skewed features BEFORE splitting
     skewed_cols = ["residual sugar", "free sulfur dioxide", "total sulfur dioxide", "chlorides", "sulphates"]
     df = log_transform(df, skewed_cols)
 
@@ -66,11 +90,34 @@ def preprocess_features(df: pd.DataFrame) -> tuple:
         X, y, test_size=0.2, random_state=6, stratify=y
     )
 
-    # Standardize AFTER split: fit on train only
+    # Standardize AFTER split
     train_mean = X_train.mean()
     train_std = X_train.std()
 
     X_train = (X_train - train_mean) / train_std
     X_test = (X_test - train_mean) / train_std
 
-    return X_train.values, X_test.values, y_train, y_test
+    # Apply SMOTE-like oversampling
+    if apply_smote:
+        # Identify minority and majority classes
+        unique, counts = np.unique(y_train, return_counts=True)
+        class_counts = dict(zip(unique, counts))
+
+        majority_class = max(class_counts, key=class_counts.get)
+        minority_class = min(class_counts, key=class_counts.get)
+
+        n_majority = class_counts[majority_class]
+        n_minority = class_counts[minority_class]
+        n_needed = n_majority - n_minority
+
+        # Extract minority class samples
+        X_minority = X_train[y_train == minority_class]
+
+        synthetic_samples = generate_synthetic_samples(X_minority, N=n_needed, k=5)
+        synthetic_labels = np.array([minority_class] * len(synthetic_samples))
+
+        # Combine with original data
+        X_train = np.vstack([X_train, synthetic_samples])
+        y_train = np.concatenate([y_train, synthetic_labels])
+
+    return X_train, X_test.values, y_train, y_test

@@ -6,27 +6,65 @@ from src.kernels import KernelLogisticRegression, KernelPegasosSVM, create_named
 from src.hyperparameter_tuning import grid_search
 from sklearn.linear_model import LogisticRegression  # benchmark
 from sklearn.svm import SVC  # benchmark
-from sklearn.metrics import accuracy_score  # evaluation
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, f1_score , confusion_matrix# evaluation
 
 
-def main():
-    '''Pre-processing data'''
-    red_path = os.path.join("data", "winequality-red.csv")
-    white_path = os.path.join("data", "winequality-white.csv")
-    data = load_and_combine_data(red_path, white_path)
-    X_train, X_test, y_train, y_test = preprocess_features(data)
+def comprehensive_evaluation(y_true, y_pred, model_name="Model"):
+    """Comprehensive evaluation for imbalanced classification"""
+    acc = accuracy_score(y_true, y_pred)
+    bal_acc = balanced_accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
 
-    '''Logistic Regression'''
+    print(f"✅ {model_name} Results:")
+    print(f"   Accuracy: {acc:.4f}")
+    print(f"   Balanced Accuracy: {bal_acc:.4f}")
+    print(f"   Precision: {precision:.4f}")
+    print(f"   Recall: {recall:.4f}")
+    print(f"   F1-Score: {f1:.4f}")
+
+    # Confusion Matrix
+    cm = confusion_matrix(y_true, y_pred)
+    print(f"   Confusion Matrix: TN={cm[0, 0]}, FP={cm[0, 1]}, FN={cm[1, 0]}, TP={cm[1, 1]}")
+
+    return {
+        'accuracy': acc,
+        'balanced_accuracy': bal_acc,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1
+    }
+
+
+def run_experiment(data, use_smote=False, experiment_name="Baseline"):
+    """Run a complete experiment with or without SMOTE"""
+
+    print(f"\n{'=' * 70}")
+    print(f"🧪 EXPERIMENT: {experiment_name}")
+    print(f"{'=' * 70}")
+
+    # Preprocess data
+    X_train, X_test, y_train, y_test = preprocess_features(data, apply_smote=use_smote)
+
+    results = {}
+
+    # 1. LOGISTIC REGRESSION
+    print(f"\n{'=' * 50}")
+    print("🔍 LOGISTIC REGRESSION")
+    print(f"{'=' * 50}")
+
     lr_param_grid = {
-        "learning_rate": [0.001, 0.01, 0.05, 0.1, 0.5],
-        "regularization_strength": [0.0, 0.01, 0.1, 0.5],
-        "epochs": [500, 1000, 2000]
+        "learning_rate": [0.001, 0.01, 0.1],
+        "regularization_strength": [0.0, 0.01, 0.1],
+        "epochs": [500, 1000]
     }
 
     print("🔍 Grid search for Logistic Regression...")
     best_params_lr, best_score_lr = grid_search(X_train, y_train, LogisticRegressionScratch, lr_param_grid)
-    print(f"✅ Best Logistic Regression params: {best_params_lr}, CV Accuracy: {best_score_lr:.4f}")
+    print(f"✅ Best LR params: {best_params_lr}, CV Accuracy: {best_score_lr:.4f}")
 
+    # Train best model
     model_lr = LogisticRegressionScratch(
         learning_rate=best_params_lr["learning_rate"],
         regularization_strength=best_params_lr["regularization_strength"],
@@ -34,123 +72,107 @@ def main():
     )
     model_lr.fit(X_train, y_train)
     pred_lr = model_lr.predict(X_test)
-    acc_lr = accuracy_score(y_test, pred_lr)
 
+    # Sklearn benchmark
     model_lr_sk = LogisticRegression(penalty=None, solver='lbfgs', max_iter=best_params_lr["epochs"])
     model_lr_sk.fit(X_train, y_train)
-    acc_lr_sk = accuracy_score(y_test, model_lr_sk.predict(X_test))
+    pred_lr_sk = model_lr_sk.predict(X_test)
 
-    print(f"✅ Logistic Regression from Scratch Accuracy: {acc_lr:.4f}")
-    print(f"✅ Logistic Regression (sklearn) Accuracy: {acc_lr_sk:.4f}")
+    results['lr_scratch'] = comprehensive_evaluation(y_test, pred_lr, "Logistic Regression (Scratch)")
+    results['lr_sklearn'] = comprehensive_evaluation(y_test, pred_lr_sk, "Logistic Regression (sklearn)")
 
-    '''Kernel Logistic Regression'''
-    print("\n🔍 Starting Kernel Logistic Regression hyperparameter tuning...")
+    # 2. LINEAR SVM
+    print(f"\n{'=' * 50}")
+    print("🔍 LINEAR SVM")
+    print(f"{'=' * 50}")
 
-    # Create kernel functions
-    gamma_values = [0.001, 0.01, 0.1]
-    degree_values = [] #2, 3, 4
-    coef0_values = [] #0, 1, 10
-    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
-
-    # Parameter grid for kernel logistic regression
-    klr_param_grid = {
-        "kernel": named_kernels,
-        "lambda_": [0.01, 0.1, 0.5],
-        "epochs": [500, 1000]
+    svm_param_grid = {
+        "lambda_": [0.001, 0.01, 0.1],
+        "max_iter": [500, 1000]
     }
 
-    best_params_klr, best_score_klr = grid_search(X_train, y_train, KernelLogisticRegression, klr_param_grid)
-    print(f"🏆 Best Kernel Logistic Regression Params: {best_params_klr}, CV Accuracy: {best_score_klr:.4f}")
+    print("🔍 Grid search for Linear SVM...")
+    best_params_svm, best_score_svm = grid_search(X_train, y_train, SVMClassifierScratch, svm_param_grid)
+    print(f"✅ Best SVM params: {best_params_svm}, CV Accuracy: {best_score_svm:.4f}")
 
-    # Train the best model
+    # Train best model
+    svm_model = SVMClassifierScratch(lambda_=best_params_svm["lambda_"])
+    svm_model.fit(X_train, y_train, max_iter=best_params_svm["max_iter"])
+    pred_svm = svm_model.predict(X_test)
+
+    # Sklearn benchmark
+    l_svm_sk = SVC(kernel='linear', C=1.0)
+    l_svm_sk.fit(X_train, y_train)
+    pred_l_svm_sk = l_svm_sk.predict(X_test)
+
+    results['svm_scratch'] = comprehensive_evaluation(y_test, pred_svm, "Linear SVM (Scratch)")
+    results['svm_sklearn'] = comprehensive_evaluation(y_test, pred_l_svm_sk, "Linear SVM (sklearn)")
+
+    # 3. KERNEL LOGISTIC REGRESSION
+    print(f"\n{'=' * 50}")
+    print("🔍 KERNEL LOGISTIC REGRESSION")
+    print(f"{'=' * 50}")
+
+    # Create kernel functions (reduced for speed)
+    gamma_values = [0.01, 0.1]
+    degree_values = [] #2, 3
+    coef0_values = [] #0, 1
+    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
+
+    klr_param_grid = {
+        "kernel": named_kernels,
+        "lambda_": [0.01, 0.1],
+        "epochs": [500]
+    }
+
+    print("🔍 Grid search for Kernel Logistic Regression...")
+    best_params_klr, best_score_klr = grid_search(X_train, y_train, KernelLogisticRegression, klr_param_grid)
+    print(f"✅ Best KLR params: {best_params_klr}, CV Accuracy: {best_score_klr:.4f}")
+
+    # Train best model
     klr = KernelLogisticRegression(
         kernel=best_params_klr["kernel"],
         lambda_=best_params_klr["lambda_"],
         epochs=best_params_klr["epochs"],
-        subsample_ratio=0.2,  # Use only 20% of training data as support vectors
-        batch_size=64,        # Reasonable batch size
+        subsample_ratio=0.2,
+        batch_size=64,
         early_stopping_patience=20
     )
-
     klr.fit(X_train, y_train)
-    klr_preds = klr.predict(X_test)
-    acc_klr = accuracy_score(y_test, klr_preds)
+    pred_klr = klr.predict(X_test)
 
-    print(f"✅ Kernel Logistic Regression from Scratch Accuracy: {acc_klr:.4f}")
+    results['klr_scratch'] = comprehensive_evaluation(y_test, pred_klr, "Kernel Logistic Regression (Scratch)")
 
-    '''Linear SVM'''
-    print("\n🔍 Starting Linear SVM hyperparameter tuning...")
+    # 4. KERNEL SVM
+    print(f"\n{'=' * 50}")
+    print("🔍 KERNEL SVM")
+    print(f"{'=' * 50}")
 
-    svm_param_grid = {
-        "lambda_": [0.001, 0.01, 0.1],
-        "max_iter": [100, 500, 1000]
-    }
+    return results
 
-    best_params_svm, best_score_svm = grid_search(X_train, y_train, SVMClassifierScratch, svm_param_grid)
-    print(f"✅ Best Linear SVM params: {best_params_svm}, CV Accuracy: {best_score_svm:.4f}")
 
-    svm_model = SVMClassifierScratch(lambda_=best_params_svm["lambda_"])
-    svm_model.fit(X_train, y_train, max_iter=best_params_svm["max_iter"])
-    acc_svm = accuracy_score(y_test, svm_model.predict(X_test))
 
-    l_svm_sk = SVC(kernel='linear', C=1.0)
-    l_svm_sk.fit(X_train, y_train)
-    acc_l_svm_sk = accuracy_score(y_test, l_svm_sk.predict(X_test))
 
-    print(f"✅ Linear SVM from Scratch Accuracy: {acc_svm:.4f}")
-    print(f"✅ Linear SVM (sklearn) Accuracy: {acc_l_svm_sk:.4f}")
+def main():
+    """Main function comparing baseline vs SMOTE approaches"""
 
-    '''Kernel SVM'''
-    print("\n🔍 Starting Kernel SVM hyperparameter tuning...")
-    gamma_values = [0.001, 0.01, 0.1]
-    degree_values = [2, 3, 4]
-    coef0_values = [0, 1, 10]
-    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
+    print("🍷 WINE QUALITY CLASSIFICATION: BASELINE vs SMOTE COMPARISON")
+    print("=" * 80)
 
-    ksvm_param_grid = {
-        "kernel_fn": named_kernels,
-        "lambda_": [0.01, 0.1],
-        "max_iter": [500, 1000]
-    }
+    # Load data
+    red_path = os.path.join("data", "winequality-red.csv")
+    white_path = os.path.join("data", "winequality-white.csv")
+    data = load_and_combine_data(red_path, white_path)
 
-    best_params_ksvm, best_score_ksvm = grid_search(X_train, y_train, KernelPegasosSVM, ksvm_param_grid)
-    print(f"🏆 Best Kernel Pegasos Params: {best_params_ksvm}, CV Accuracy: {best_score_ksvm:.4f}")
+    # Run experiments
+    print("\n🚀 Starting experiments...")
 
-    ksvm = KernelPegasosSVM(
-        kernel_fn=best_params_ksvm["kernel_fn"],
-        lambda_=best_params_ksvm["lambda_"],
-        max_iter=best_params_ksvm["max_iter"]
-    )
-    ksvm.fit(X_train, y_train)
-    ksvm_preds = ksvm.predict(X_test)
-    acc_ksvm = accuracy_score(y_test, ksvm_preds)
-    
-    print(f"✅ Kernel SVM from Scratch Accuracy: {acc_ksvm:.4f}")
-    print(f"📊 Number of support vectors: {len(ksvm.support_vectors)}")
+    # Baseline experiment (no SMOTE)
+    #results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
 
-    rbf_svm_sk = SVC(kernel='rbf', C=1.0)
-    rbf_svm_sk.fit(X_train, y_train)
-    acc_rbf_svm_sk = accuracy_score(y_test, rbf_svm_sk.predict(X_test))
+    # SMOTE experiment
+    results_smote = run_experiment(data, use_smote=True, experiment_name="SMOTE OVERSAMPLING")
 
-    print(f"✅ Kernel RBF SVM from Scratch Accuracy: {acc_rbf_svm_sk:.4f}")
-
-    poly_svm_sk = SVC(kernel='poly', C=1.0)
-    poly_svm_sk.fit(X_train, y_train)
-    acc_poly_svm_sk = accuracy_score(y_test, poly_svm_sk.predict(X_test))
-
-    print(f"✅ Kernel Poly SVM from Scratch Accuracy: {acc_poly_svm_sk:.4f}")
-
-    '''Summary'''
-    print("\n" + "=" * 50)
-    print("📊 FINAL RESULTS SUMMARY")
-    print("=" * 50)
-    print(f"Linear Logistic Regression (Scratch): {acc_lr:.4f}")
-    print(f"Linear Logistic Regression (sklearn): {acc_lr_sk:.4f}")
-    print(f"Kernel Logistic Regression (Scratch): {acc_klr:.4f}")
-    print(f"Linear SVM (Scratch): {acc_svm:.4f}")
-    print(f"Linear SVM (sklearn): {acc_l_svm_sk:.4f}")
-    print(f"Kernel SVM (Scratch): {acc_ksvm:.4f}")
-    print("=" * 50)
 
 if __name__ == "__main__":
     main()
