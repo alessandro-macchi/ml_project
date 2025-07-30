@@ -15,9 +15,9 @@ def comprehensive_evaluation(y_true, y_pred, model_name="Model"):
     """Comprehensive evaluation for imbalanced classification"""
     acc = accuracy_score(y_true, y_pred)
     bal_acc = balanced_accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, zero_division=0)
-    recall = recall_score(y_true, y_pred, zero_division=0)
-    f1 = f1_score(y_true, y_pred, zero_division=0)
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
 
     print(f"✅ {model_name} Results:")
     print(f"   Accuracy: {acc:.4f}")
@@ -122,7 +122,7 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
     named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
 
     klr_param_grid = {
-        "kernel": named_kernels[:3],  # Limit to first 3 kernels for speed
+        "kernel": named_kernels,
         "lambda_": [0.01, 0.1],
         "epochs": [500]
     }

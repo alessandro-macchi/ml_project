@@ -191,6 +191,11 @@ class KernelPegasosSVM:
         if max_iter is not None:
             self.max_iter = max_iter
 
+        # Ensure labels are -1 or +1
+        y = np.where(y == 0, -1, y)
+        if set(np.unique(y)) != {-1, 1}:
+            raise ValueError("Pegasos requires binary classification with labels in {-1, 1}")
+
         n_samples = X.shape[0]
 
         for t in range(1, self.max_iter + 1):
@@ -198,33 +203,30 @@ class KernelPegasosSVM:
             x_t = X[i]
             y_t = y[i]
 
-            # Compute g_t(x_t)
             if len(self.support_vectors) == 0:
                 g_x_t = 0
             else:
                 g_x_t = sum(
-                    alpha * self.kernel_fn(sv, x_t)
-                    for alpha, sv in zip(self.alphas, self.support_vectors)
+                    alpha * y_i * self.kernel_fn(sv, x_t)
+                    for alpha, y_i, sv in zip(self.alphas, self.support_labels, self.support_vectors)
                 )
 
-            # Compute margin loss
-            h_t = 1 - y_t * g_x_t
-
-            # Decay old alphas: scale them by (1 - 1/t)
-            self.alphas = [(1 - 1 / t) * alpha for alpha in self.alphas]
-
-            # If the hinge loss is positive, perform update
-            if h_t > 0:
-                alpha_t = (y_t / (self.lambda_ * t))
+            # Margin violation
+            if y_t * g_x_t < 1:
+                alpha_t = 1 / (self.lambda_ * t)
                 self.support_vectors.append(x_t)
+                self.support_labels.append(y_t)
                 self.alphas.append(alpha_t)
+
+            # Decay all previous alphas
+            self.alphas = [(1 - 1 / t) * alpha for alpha in self.alphas]
 
     def predict(self, X):
         preds = []
         for x in X:
             result = sum(
-                alpha * self.kernel_fn(sv, x)
-                for alpha, sv in zip(self.alphas, self.support_vectors)
+                alpha * y_i * self.kernel_fn(sv, x)
+                for alpha, y_i, sv in zip(self.alphas, self.support_labels, self.support_vectors)
             )
             preds.append(np.sign(result))
         return np.array(preds)

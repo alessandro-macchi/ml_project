@@ -8,10 +8,11 @@ from sklearn.metrics import accuracy_score  # evaluation
 
 def main():
     '''Pre-processing data'''
-    red_path = os.path.join("data", "winequality-red.csv")
-    white_path = os.path.join("data", "winequality-white.csv")
+    red_path = os.path.join("..", "data", "winequality-red.csv")
+    white_path = os.path.join("..", "data", "winequality-white.csv")
     data = load_and_combine_data(red_path, white_path)
     X_train, X_test, y_train, y_test = preprocess_features(data)
+
     '''Kernel SVM'''
     print("\n🔍 Starting Kernel SVM hyperparameter tuning...")
     gamma_values = [0.001, 0.01, 0.1]
@@ -51,3 +52,6 @@ def main():
     acc_poly_svm_sk = accuracy_score(y_test, poly_svm_sk.predict(X_test))
 
     print(f"✅ Kernel Poly SVM from Scratch Accuracy: {acc_poly_svm_sk:.4f}")
+
+if __name__ == "__main__":
+    main()
