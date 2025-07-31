@@ -24,14 +24,14 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
         "regularization_strength": [0.0, 0.01, 0.1],
         "epochs": [500, 1000]
     }
-    # results.update(run_logistic_regression_experiment(X_train, y_train, X_test, y_test, lr_param_grid))
+    results.update(run_logistic_regression_experiment(X_train, y_train, X_test, y_test, lr_param_grid))
 
     # SVM
     svm_param_grid = {
         "lambda_": [0.001, 0.01, 0.1],
         "max_iter": [500, 1000]
     }
-    # results.update(run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid))
+    results.update(run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid))
 
     # KERNEL LOGISTIC REGRESSION
     klr_param_grid = {
