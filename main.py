@@ -20,17 +20,17 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
 
     # LOGISTIC REGRESSION
     lr_param_grid = {
-        "learning_rate": [0.001, 0.01, 0.1],
-        "regularization_strength": [0.0, 0.01, 0.1],
-        "epochs": [500, 1000]
-    }
+        'learning_rate': [0.08, 0.1, 0.12, 0.15],
+        'regularization_strength': [0.005, 0.01, 0.02, 0.05],
+        'epochs': [1000, 1200, 1500]
+    } # The grids are chosen to perform better with SMOTE
     results.update(run_logistic_regression_experiment(X_train, y_train, X_test, y_test, lr_param_grid))
 
     # SVM
     svm_param_grid = {
-        "lambda_": [0.001, 0.01, 0.1],
-        "max_iter": [500, 1000]
-    }
+        'lambda_': [0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],  # Around best for SMOTE
+        'max_iter': [1200, 1500, 2000, 3000],  # Higher iterations for SMOTE
+    } # The grids are chosen to perform better with SMOTE
     results.update(run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid))
 
     # KERNEL LOGISTIC REGRESSION
@@ -53,7 +53,7 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
 
 
 def main():
-    print("🍷 WINE QUALITY CLASSIFICATION: BASELINE vs SMOTE COMPARISON")
+    print("🍷 WINE QUALITY CLASSIFICATION")
     print("=" * 80)
 
     red_path = os.path.join("data", "winequality-red.csv")
@@ -63,13 +63,13 @@ def main():
     print("\n🚀 Starting experiments...")
 
     # Baseline experiment (no SMOTE)
-    results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
+    # results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
 
     # SMOTE experiment
     results_smote = run_experiment(data, use_smote=True, experiment_name="SMOTE OVERSAMPLING")
 
     # Print detailed comparison
-    print_comparison_table(results_baseline, results_smote)
+    # print_comparison_table(results_baseline, results_smote)
 
 
 if __name__ == "__main__":
