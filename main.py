@@ -28,25 +28,25 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
 
     # SVM
     svm_param_grid = {
-        'lambda_': [0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],  # Around best for SMOTE
-        'max_iter': [1200, 1500, 2000, 3000],  # Higher iterations for SMOTE
-    } # The grids are chosen to perform better with SMOTE
+        'lambda_': [0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],
+        'max_iter': [1200, 1500, 2000, 3000],
+    } # The grids are chosen to perform better with SMOTE - Use C = 1/lambda for sklearn
     results.update(run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid))
 
     # KERNEL LOGISTIC REGRESSION
     klr_param_grid = {
-        "kernel": create_named_kernels(gamma_values=[0.01, 0.1], degree_values=[], coef0_values=[]),
-        "lambda_": [0.01, 0.1],
-        "epochs": [500]
-    }
+        "kernel": create_named_kernels(gamma_values=[0.1, 0.12, 0.15], degree_values=[], coef0_values=[]),
+        "lambda_": [0.005, 0.01, 0.015],
+        "epochs": [400, 500, 600]
+    } # The grids are chosen to perform better with SMOTE
     results.update(run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, klr_param_grid))
 
     # KERNEL SVM
     ksvm_param_grid = {
-        "kernel": create_named_kernels(gamma_values=[0.01, 0.1], degree_values=[2, 3], coef0_values=[0, 1]),
-        "lambda_": [0.01, 0.1],
-        "max_iter": [1000, 2000]
-    }
+        "kernel": create_named_kernels(gamma_values=[0.1, 0.15], degree_values=[2, 3], coef0_values=[0.5, 1, 1.5]),
+        "lambda_": [0.005, 0.01, 0.05],
+        "max_iter": [1000, 1500]
+    } # The grids are chosen to perform better with SMOTE - Use C = 1/lambda for sklearn
     results.update(run_kernel_svm_experiment(X_train, y_train, X_test, y_test, ksvm_param_grid))
 
     return results
@@ -63,13 +63,13 @@ def main():
     print("\n🚀 Starting experiments...")
 
     # Baseline experiment (no SMOTE)
-    # results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
+    results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
 
     # SMOTE experiment
     results_smote = run_experiment(data, use_smote=True, experiment_name="SMOTE OVERSAMPLING")
 
     # Print detailed comparison
-    # print_comparison_table(results_baseline, results_smote)
+    print_comparison_table(results_baseline, results_smote)
 
 
 if __name__ == "__main__":
