@@ -52,4 +52,5 @@ class SVMClassifierScratch:
         """
         scores = np.dot(X, self.weights) + self.bias
         preds = np.where(scores >= 0, 1, 0)
+
         return preds

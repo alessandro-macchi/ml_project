@@ -46,4 +46,6 @@ class LogisticRegressionScratch:
 
     def predict(self, X):
         probas = self.predict_proba(X)
-        return np.where(probas >= 0.5, 1, 0)
+        preds = np.where(probas >= 0.5, 1, 0)
+
+        return preds
