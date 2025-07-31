@@ -3,7 +3,7 @@ import numpy as np
 from tests.test_src.test_preprocessing import load_and_combine_data, preprocess_features
 from src.logistic_regression import LogisticRegressionScratch
 from src.svm import SVMClassifierScratch
-from src.kernels import KernelLogisticRegression, KernelPegasosSVM, create_named_kernels
+from src.utils import KernelLogisticRegression, KernelPegasosSVM, create_named_kernels
 from src.hyperparameter_tuning import grid_search
 from sklearn.linear_model import LogisticRegression  # benchmark
 from sklearn.svm import SVC  # benchmark

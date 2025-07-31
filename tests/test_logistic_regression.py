@@ -1,7 +1,7 @@
 import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from src.logistic_regression import LogisticRegressionScratch
-from src.kernels import KernelLogisticRegression, create_named_kernels
+from src.utils import KernelLogisticRegression, create_named_kernels
 from src.hyperparameter_tuning import grid_search
 from sklearn.linear_model import LogisticRegression  # benchmark
 from sklearn.metrics import accuracy_score  # evaluation
