@@ -143,14 +143,53 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
 
     results['klr_scratch'] = comprehensive_evaluation(y_test, pred_klr, "Kernel Logistic Regression (Scratch)")
 
-    # 4. KERNEL SVM
+    # 4. KERNEL SVM (PEGASOS)
     print(f"\n{'=' * 50}")
-    print("🔍 KERNEL SVM")
+    print("🔍 KERNEL SVM (PEGASOS)")
     print(f"{'=' * 50}")
 
+    gamma_values = [] #0.01, 0.1
+    degree_values = [2, 3]
+    coef0_values = [0, 1]
+    named_kernels = create_named_kernels(gamma_values, degree_values, coef0_values)
+
+    # Create kernel functions for SVM
+    ksvm_param_grid = {
+        "kernel_fn": named_kernels,  # Limit to first 2 kernels for speed
+        "lambda_": [0.01, 0.1],
+        "max_iter": [1000, 2000]
+    }
+
+    print("🔍 Grid search for Kernel SVM (Pegasos)...")
+    best_params_ksvm, best_score_ksvm = grid_search(X_train, y_train, KernelPegasosSVM, ksvm_param_grid)
+    print(f"✅ Best KSVM params: {best_params_ksvm}, CV Accuracy: {best_score_ksvm:.4f}")
+
+    # Train best model
+    ksvm = KernelPegasosSVM(
+        kernel_fn=best_params_ksvm["kernel_fn"],
+        lambda_=best_params_ksvm["lambda_"],
+        max_iter=best_params_ksvm["max_iter"]
+    )
+    ksvm.fit(X_train, y_train)
+    pred_ksvm = ksvm.predict(X_test)
+
+    results['ksvm_scratch'] = comprehensive_evaluation(y_test, pred_ksvm, "Kernel SVM (Pegasos)")
+    print(f"📊 Number of support vectors: {len(ksvm.support_vectors)}")
+
+    # Sklearn kernel benchmarks
+    print("\n🔍 Sklearn Kernel SVM Benchmarks...")
+    rbf_svm_sk = SVC(kernel='rbf', C=0.01, max_iter=2000, gamma=0.1)
+    rbf_svm_sk.fit(X_train, y_train)
+    pred_rbf_svm_sk = rbf_svm_sk.predict(X_test)
+
+    poly_svm_sk = SVC(kernel='poly', C=1.0, degree=3, gamma='scale')
+    poly_svm_sk.fit(X_train, y_train)
+    pred_poly_svm_sk = poly_svm_sk.predict(X_test)
+
+    results['rbf_svm_sklearn'] = comprehensive_evaluation(y_test, pred_rbf_svm_sk, "RBF SVM (sklearn)")
+    results['poly_svm_sklearn'] = comprehensive_evaluation(y_test, pred_poly_svm_sk, "Poly SVM (sklearn)")
+
     return results
-
-
 
 
 def main():
