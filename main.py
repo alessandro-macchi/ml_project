@@ -34,8 +34,8 @@ def run_experiment(data, use_smote=False, experiment_name=""):
     # KERNEL LOGISTIC REGRESSION
     klr_param_grid = {
         "kernel": create_named_kernels(gamma_values=[0.1, 0.12, 0.15], degree_values=[], coef0_values=[]),
-        "lambda_": [0.005, 0.01, 0.015],
-        "epochs": [400, 500, 600]
+        "lambda_": [0.005, 0.01],
+        "epochs": [500, 600]
     }
     results.update(run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, klr_param_grid))
 
