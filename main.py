@@ -5,11 +5,9 @@ from models.svm import run_svm_experiment
 from models.kernel_logistic_regression import run_kernel_logistic_regression_experiment
 from models.kernel_svm import run_kernel_svm_experiment
 from src.utils import create_named_kernels
-from src.metrics import print_comparison_table
 
 
-def run_experiment(data, use_smote=False, experiment_name="Baseline"):
-    """Run a complete experiment with or without SMOTE"""
+def run_experiment(data, use_smote=False, experiment_name=""):
     print(f"\n{'=' * 70}")
     print(f"🧪 EXPERIMENT: {experiment_name}")
     print(f"{'=' * 70}")
@@ -23,14 +21,14 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
         'learning_rate': [0.08, 0.1, 0.12, 0.15],
         'regularization_strength': [0.005, 0.01, 0.02, 0.05],
         'epochs': [1000, 1200, 1500]
-    } # The grids are chosen to perform better with SMOTE
+    }
     results.update(run_logistic_regression_experiment(X_train, y_train, X_test, y_test, lr_param_grid))
 
     # SVM
     svm_param_grid = {
         'lambda_': [0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],
         'max_iter': [1200, 1500, 2000, 3000],
-    } # The grids are chosen to perform better with SMOTE - Use C = 1/lambda for sklearn
+    } # Use C = 1/lambda for sklearn
     results.update(run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid))
 
     # KERNEL LOGISTIC REGRESSION
@@ -38,7 +36,7 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
         "kernel": create_named_kernels(gamma_values=[0.1, 0.12, 0.15], degree_values=[], coef0_values=[]),
         "lambda_": [0.005, 0.01, 0.015],
         "epochs": [400, 500, 600]
-    } # The grids are chosen to perform better with SMOTE
+    }
     results.update(run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, klr_param_grid))
 
     # KERNEL SVM
@@ -46,7 +44,7 @@ def run_experiment(data, use_smote=False, experiment_name="Baseline"):
         "kernel": create_named_kernels(gamma_values=[0.1, 0.15], degree_values=[2, 3], coef0_values=[0.5, 1, 1.5]),
         "lambda_": [0.005, 0.01, 0.05],
         "max_iter": [1000, 1500]
-    } # The grids are chosen to perform better with SMOTE - Use C = 1/lambda for sklearn
+    } # Use C = 1/lambda for sklearn
     results.update(run_kernel_svm_experiment(X_train, y_train, X_test, y_test, ksvm_param_grid))
 
     return results
@@ -62,14 +60,7 @@ def main():
 
     print("\n🚀 Starting experiments...")
 
-    # Baseline experiment (no SMOTE)
-    results_baseline = run_experiment(data, use_smote=False, experiment_name="BASELINE (No SMOTE)")
-
-    # SMOTE experiment
-    results_smote = run_experiment(data, use_smote=True, experiment_name="SMOTE OVERSAMPLING")
-
-    # Print detailed comparison
-    print_comparison_table(results_baseline, results_smote)
+    run_experiment(data, use_smote=True, experiment_name="SMOTE OVERSAMPLING")
 
 
 if __name__ == "__main__":
