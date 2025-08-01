@@ -9,9 +9,6 @@ from src.save import save_results
 
 
 def print_model_results(results, experiment_name):
-    """Print results in a formatted way with error handling"""
-    print(f"\n📊 {experiment_name} RESULTS:")
-    print("=" * 60)
 
     for model_name, metrics in results.items():
         print(f"\n🔹 {model_name}:")
@@ -31,14 +28,10 @@ def run_experiment(data, use_smote=False, experiment_name=""):
     print(f"🧪 EXPERIMENT: {experiment_name}")
     print(f"{'=' * 70}")
 
-    try:
-        X_train, X_test, y_train, y_test = preprocess_features(data, apply_smote=use_smote)
-        print(f"✅ Data preprocessing completed")
-        print(f"   Training samples: {len(X_train)}")
-        print(f"   Test samples: {len(X_test)}")
-    except Exception as e:
-        print(f"❌ Error in preprocessing: {e}")
-        return {}
+    X_train, X_test, y_train, y_test = preprocess_features(data, apply_smote=use_smote)
+    print(f"✅ Data preprocessing completed")
+    print(f"   Training samples: {len(X_train)}")
+    print(f"   Test samples: {len(X_test)}")
 
     results = {}
 
@@ -103,27 +96,7 @@ def main():
 
     print("\n🚀 Starting experiments...")
 
-    # Run baseline experiment
-    baseline_results = run_experiment(data, use_smote=False, experiment_name="BASELINE")
-
-    # Run SMOTE experiment
-    smote_results = run_experiment(data, use_smote=True, experiment_name="SMOTE_OVERSAMPLING")
-
-    # Create the combined comparison
-    combined_results = {
-       'baseline': baseline_results,
-        'smote': smote_results,
-        'metadata': {
-            'data_shape': list(data.shape),
-            'features': list(data.columns),
-            'target_distribution': data['quality'].value_counts().to_dict() if 'quality' in data.columns else {}
-        }
-    }
-
-    save_results(combined_results, "COMBINED_COMPARISON")
-
-
-
+    smote_results = run_experiment(data, use_smote=True, experiment_name="Wine Classification with SMOTE Oversampling")
 
 if __name__ == "__main__":
     main()
