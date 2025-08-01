@@ -23,13 +23,15 @@ def print_model_results(results, experiment_name):
             print(f"   Raw result: {metrics}")
 
 
-def run_experiment(data, use_smote=False, experiment_name=""):
+def run_experiment(data, experiment_name=""):
     print(f"\n{'=' * 70}")
     print(f"🧪 EXPERIMENT: {experiment_name}")
     print(f"{'=' * 70}")
 
-    X_train, X_test, y_train, y_test = preprocess_features(data, apply_smote=use_smote)
-    print(f"✅ Data preprocessing completed")
+    # Apply SMOTE only to Train, to avoid Data Leakage
+    X_train, X_test, y_train, y_test = preprocess_features(data, apply_smote=True)
+
+    print(f"✅ Data preprocessing completed with SMOTE oversampling")
     print(f"   Training samples: {len(X_train)}")
     print(f"   Test samples: {len(X_test)}")
 
@@ -94,9 +96,9 @@ def main():
 
     data = load_and_combine_data(red_path, white_path)
 
-    print("\n🚀 Starting experiments...")
+    print("\n🚀 Starting experiment...")
 
-    smote_results = run_experiment(data, use_smote=True, experiment_name="Wine Classification with SMOTE Oversampling")
+    results = run_experiment(data, experiment_name="Wine Classification with SMOTE Oversampling")
 
 if __name__ == "__main__":
     main()
