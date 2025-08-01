@@ -1,7 +1,7 @@
 from src.metrics import comprehensive_evaluation
 from src.hyperparameter_tuning import grid_search
 import numpy as np
-from sklearn.linear_model import LogisticRegression # benchmark
+
 
 class LogisticRegressionScratch:
     def __init__(self, learning_rate=0.1, regularization_strength=0.01, epochs=1000):
@@ -65,11 +65,6 @@ def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_g
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
 
-    benchmark_model = LogisticRegression(penalty=None, solver='lbfgs', max_iter=best_params["epochs"])
-    benchmark_model.fit(X_train, y_train)
-    benchmark_preds = benchmark_model.predict(X_test)
-
     return {
-        'lr_scratch': comprehensive_evaluation(y_test, preds, "Logistic Regression (Scratch)"),
-        'lr_sklearn': comprehensive_evaluation(y_test, benchmark_preds, "Logistic Regression (sklearn)")
+        'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")
     }

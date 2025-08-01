@@ -1,7 +1,7 @@
 from src.metrics import comprehensive_evaluation
 from src.hyperparameter_tuning import grid_search
-from sklearn.svm import SVC # benchmark
 import numpy as np
+
 
 class SVMClassifierScratch:
     """
@@ -40,10 +40,9 @@ class SVMClassifierScratch:
                 self.weights = (1 - eta * self.lambda_) * self.weights
 
     def predict(self, X):
-        X = np.array(X)  # ✅ ensures dot product works
+        X = np.array(X)
         scores = np.dot(X, self.weights) + self.bias
         preds = np.where(scores >= 0, 1, 0)
-
         return preds
 
 
@@ -60,11 +59,6 @@ def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
     model.fit(X_train, y_train, max_iter=best_params["max_iter"])
     preds = model.predict(X_test)
 
-    benchmark_model = SVC(kernel='linear', C=1.0)
-    benchmark_model.fit(X_train, y_train)
-    benchmark_preds = benchmark_model.predict(X_test)
-
     return {
-        'svm_scratch': comprehensive_evaluation(y_test, preds, "Linear SVM (Scratch)"),
-        'svm_sklearn': comprehensive_evaluation(y_test, benchmark_preds, "Linear SVM (sklearn)")
+        'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")
     }

@@ -246,5 +246,5 @@ def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, 
     preds = model.predict(X_test)
 
     return {
-        'klr_scratch': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Scratch)")
+        'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")
     }

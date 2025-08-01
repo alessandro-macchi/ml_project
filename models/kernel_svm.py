@@ -1,6 +1,5 @@
 from src.metrics import comprehensive_evaluation
 from src.hyperparameter_tuning import grid_search
-from sklearn.svm import SVC  # benchmark
 import numpy as np
 from src.utils import sigmoid
 
@@ -255,16 +254,6 @@ def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
 
     print(f"📊 Number of support vectors: {len(model.support_vectors)}")
 
-    rbf_svm_sk = SVC(kernel='rbf', C=0.01, max_iter=2000, gamma=0.1)
-    rbf_svm_sk.fit(X_train, y_train)
-    pred_rbf = rbf_svm_sk.predict(X_test)
-
-    poly_svm_sk = SVC(kernel='poly', C=1.0, degree=3, gamma='scale')
-    poly_svm_sk.fit(X_train, y_train)
-    pred_poly = poly_svm_sk.predict(X_test)
-
     return {
-        'ksvm_scratch': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)"),
-        'rbf_svm_sklearn': comprehensive_evaluation(y_test, pred_rbf, "RBF SVM (sklearn)"),
-        'poly_svm_sklearn': comprehensive_evaluation(y_test, pred_poly, "Poly SVM (sklearn)")
+        'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")
     }
