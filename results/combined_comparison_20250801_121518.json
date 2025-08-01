@@ -1,0 +1,29 @@
+{
+  "baseline": {
+    "accuracy": 0.0,
+    "balanced_accuracy": 0.0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "experiment": "COMBINED_COMPARISON",
+    "timestamp": "20250801_121518"
+  },
+  "smote": {
+    "accuracy": 0.0,
+    "balanced_accuracy": 0.0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "experiment": "COMBINED_COMPARISON",
+    "timestamp": "20250801_121518"
+  },
+  "metadata": {
+    "accuracy": 0.0,
+    "balanced_accuracy": 0.0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "experiment": "COMBINED_COMPARISON",
+    "timestamp": "20250801_121518"
+  }
+}

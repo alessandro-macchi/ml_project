@@ -1,0 +1,74 @@
+{
+  "lr_scratch": {
+    "accuracy": 0.7442218798151001,
+    "balanced_accuracy": 0.7140454722034799,
+    "precision": 0.7400289098427041,
+    "recall": 0.7442218798151001,
+    "f1": 0.7410593686950082,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "lr_sklearn": {
+    "accuracy": 0.7434514637904468,
+    "balanced_accuracy": 0.7134371996973972,
+    "precision": 0.7392985461094139,
+    "recall": 0.7434514637904468,
+    "f1": 0.7403549874746074,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "svm_scratch": {
+    "accuracy": 0.7164869029275809,
+    "balanced_accuracy": 0.6899369236745794,
+    "precision": 0.7139442823395465,
+    "recall": 0.7164869029275809,
+    "f1": 0.7150054574242839,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "svm_sklearn": {
+    "accuracy": 0.7480739599383667,
+    "balanced_accuracy": 0.713107505776033,
+    "precision": 0.742975687454085,
+    "recall": 0.7480739599383667,
+    "f1": 0.7431373657102964,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "klr_scratch": {
+    "accuracy": 0.7580893682588598,
+    "balanced_accuracy": 0.7192464577071704,
+    "precision": 0.7533432283465894,
+    "recall": 0.7580893682588598,
+    "f1": 0.7515600367184027,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "ksvm_scratch": {
+    "accuracy": 0.7503852080123267,
+    "balanced_accuracy": 0.7038786317446687,
+    "precision": 0.7458661398085199,
+    "recall": 0.7503852080123267,
+    "f1": 0.7404477052272795,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "rbf_svm_sklearn": {
+    "accuracy": 0.6479198767334361,
+    "balanced_accuracy": 0.5243794598131223,
+    "precision": 0.6811269711069122,
+    "recall": 0.6479198767334361,
+    "f1": 0.5355097603701833,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  },
+  "poly_svm_sklearn": {
+    "accuracy": 0.7480739599383667,
+    "balanced_accuracy": 0.692768713324746,
+    "precision": 0.7464100707309406,
+    "recall": 0.7480739599383667,
+    "f1": 0.7334136453009557,
+    "experiment": "BASELINE",
+    "timestamp": "20250801_114713"
+  }
+}
