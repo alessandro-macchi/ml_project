@@ -1,6 +1,3 @@
-# Complete Analysis Workflow
-# This script provides a complete workflow for wine quality classification analysis
-
 import os
 import json
 import pickle
@@ -12,6 +9,7 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 import warnings
+
 warnings.filterwarnings('ignore')
 
 # Set up plotting
@@ -21,9 +19,9 @@ sns.set_palette("husl")
 
 class CompleteAnalysisWorkflow:
     """
-    Complete workflow for wine quality classification analysis including:
-    1. Data loading and preprocessing
-    2. Model training with history tracking
+    Complete workflow for wine quality classification analysis with SMOTE including:
+    1. Data loading and preprocessing with SMOTE
+    2. Custom model training with history tracking
     3. Comprehensive evaluation
     4. Misclassification analysis
     5. Results saving and visualization
@@ -46,14 +44,14 @@ class CompleteAnalysisWorkflow:
         self.training_histories = {}
         self.misclassification_analysis = {}
 
-        print("🍷 Wine Quality Classification - Complete Analysis Workflow")
+        print("🍷 Wine Quality Classification - Complete Analysis Workflow (SMOTE)")
         print("=" * 70)
 
     def load_and_preprocess_data(self, red_path="data/winequality-red.csv",
-                                 white_path="data/winequality-white.csv", apply_smote=False):
-        """Load and preprocess the wine quality dataset"""
+                                 white_path="data/winequality-white.csv"):
+        """Load and preprocess the wine quality dataset with SMOTE"""
 
-        print("\n📊 LOADING AND PREPROCESSING DATA")
+        print("\n📊 LOADING AND PREPROCESSING DATA WITH SMOTE")
         print("-" * 50)
 
         try:
@@ -74,7 +72,7 @@ class CompleteAnalysisWorkflow:
 
             # Analyze class distribution
             class_dist = self.data['quality_binary'].value_counts()
-            print(f"📈 Class distribution:")
+            print(f"📈 Original class distribution:")
             print(f"   Low quality (0): {class_dist[0]} ({class_dist[0] / len(self.data) * 100:.1f}%)")
             print(f"   High quality (1): {class_dist[1]} ({class_dist[1] / len(self.data) * 100:.1f}%)")
 
@@ -106,12 +104,17 @@ class CompleteAnalysisWorkflow:
             self.X_val = scaler.transform(self.X_val)
             self.X_test = scaler.transform(self.X_test)
 
-            # Apply SMOTE if requested
-            if apply_smote:
-                from imblearn.over_sampling import SMOTE
-                smote = SMOTE(random_state=42)
-                self.X_train, self.y_train = smote.fit_resample(self.X_train, self.y_train)
-                print("✅ Applied SMOTE oversampling")
+            # Always apply SMOTE
+            from imblearn.over_sampling import SMOTE
+            smote = SMOTE(random_state=42)
+            self.X_train, self.y_train = smote.fit_resample(self.X_train, self.y_train)
+            print("✅ Applied SMOTE oversampling")
+
+            # Show new class distribution
+            unique, counts = np.unique(self.y_train, return_counts=True)
+            print(f"📈 SMOTE class distribution:")
+            for cls, count in zip(unique, counts):
+                print(f"   Class {cls}: {count} ({count / len(self.y_train) * 100:.1f}%)")
 
             print(f"✅ Final training set: {len(self.X_train)} samples")
             print(f"✅ Validation set: {len(self.X_val)} samples")
@@ -123,34 +126,49 @@ class CompleteAnalysisWorkflow:
             print(f"❌ Error loading data: {e}")
             return False
 
-    def train_models(self):
-        """Train all models with history tracking"""
+    def train_custom_models(self):
+        """Train custom models only"""
 
-        print("\n🏋️ TRAINING MODELS WITH HISTORY TRACKING")
+        print("\n🏋️ TRAINING CUSTOM MODELS")
         print("-" * 50)
 
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.svm import SVC
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+        # Import custom models
+        from models.logistic_regression import LogisticRegressionScratch
+        from models.svm import SVMClassifierScratch
+        from models.kernel_logistic_regression import KernelLogisticRegression
+        from models.kernel_svm import KernelPegasosSVM
+        from src.utils import create_named_kernels
 
-        # Define models to train
+        # Define custom models to train
         models_config = {
-            'logistic_regression': {
-                'model': LogisticRegression(random_state=42, max_iter=1000),
-                'name': 'Logistic Regression'
+            'lr_custom': {
+                'model_class': LogisticRegressionScratch,
+                'params': {'learning_rate': 0.1, 'regularization_strength': 0.01, 'epochs': 1000},
+                'name': 'Logistic Regression (Custom)'
             },
-            'svm_linear': {
-                'model': SVC(kernel='linear', random_state=42, probability=True),
-                'name': 'Linear SVM'
+            'svm_custom': {
+                'model_class': SVMClassifierScratch,
+                'params': {'lambda_': 0.01},
+                'name': 'Linear SVM (Custom)',
+                'fit_params': {'max_iter': 1500}
             },
-            'svm_rbf': {
-                'model': SVC(kernel='rbf', random_state=42, probability=True),
-                'name': 'RBF SVM'
+            'klr_custom': {
+                'model_class': KernelLogisticRegression,
+                'params': {
+                    'kernel': create_named_kernels(gamma_values=[0.1], degree_values=[], coef0_values=[])[0],
+                    'lambda_': 0.01,
+                    'epochs': 600
+                },
+                'name': 'Kernel Logistic Regression (Custom)'
             },
-            'random_forest': {
-                'model': RandomForestClassifier(n_estimators=100, random_state=42),
-                'name': 'Random Forest'
+            'ksvm_custom': {
+                'model_class': KernelPegasosSVM,
+                'params': {
+                    'kernel': create_named_kernels(gamma_values=[0.1], degree_values=[3], coef0_values=[1])[1],
+                    'lambda_': 0.01,
+                    'max_iter': 1500
+                },
+                'name': 'Kernel SVM (Custom)'
             }
         }
 
@@ -158,51 +176,62 @@ class CompleteAnalysisWorkflow:
         for model_key, config in models_config.items():
             print(f"\n📈 Training {config['name']}...")
 
-            model = config['model']
+            model_class = config['model_class']
+            params = config['params']
+            fit_params = config.get('fit_params', {})
 
-            # Train model
-            model.fit(self.X_train, self.y_train)
-
-            # Make predictions
-            train_pred = model.predict(self.X_train)
-            val_pred = model.predict(self.X_val)
-            test_pred = model.predict(self.X_test)
-
-            # Get prediction probabilities if available
             try:
-                train_proba = model.predict_proba(self.X_train)[:, 1]
-                val_proba = model.predict_proba(self.X_val)[:, 1]
-                test_proba = model.predict_proba(self.X_test)[:, 1]
-            except:
-                train_proba = val_proba = test_proba = None
+                model = model_class(**params)
 
-            # Calculate metrics
-            train_metrics = self._calculate_metrics(self.y_train, train_pred)
-            val_metrics = self._calculate_metrics(self.y_val, val_pred)
-            test_metrics = self._calculate_metrics(self.y_test, test_pred)
+                # Train model
+                if fit_params:
+                    model.fit(self.X_train, self.y_train, **fit_params)
+                else:
+                    model.fit(self.X_train, self.y_train)
 
-            # Store model and results
-            self.models[model_key] = {
-                'model': model,
-                'name': config['name'],
-                'train_pred': train_pred,
-                'val_pred': val_pred,
-                'test_pred': test_pred,
-                'train_proba': train_proba,
-                'val_proba': val_proba,
-                'test_proba': test_proba
-            }
+                # Make predictions
+                train_pred = model.predict(self.X_train)
+                val_pred = model.predict(self.X_val)
+                test_pred = model.predict(self.X_test)
 
-            self.results[model_key] = {
-                'train_metrics': train_metrics,
-                'val_metrics': val_metrics,
-                'test_metrics': test_metrics
-            }
+                # Get prediction probabilities if available
+                try:
+                    train_proba = model.predict_proba(self.X_train)
+                    val_proba = model.predict_proba(self.X_val)
+                    test_proba = model.predict_proba(self.X_test)
+                except:
+                    train_proba = val_proba = test_proba = None
 
-            print(
-                f"   ✅ Train Acc: {train_metrics['accuracy']:.4f}, Val Acc: {val_metrics['accuracy']:.4f}, Test Acc: {test_metrics['accuracy']:.4f}")
+                # Calculate metrics
+                train_metrics = self._calculate_metrics(self.y_train, train_pred)
+                val_metrics = self._calculate_metrics(self.y_val, val_pred)
+                test_metrics = self._calculate_metrics(self.y_test, test_pred)
 
-        print("\n✅ All models trained successfully!")
+                # Store model and results
+                self.models[model_key] = {
+                    'model': model,
+                    'name': config['name'],
+                    'train_pred': train_pred,
+                    'val_pred': val_pred,
+                    'test_pred': test_pred,
+                    'train_proba': train_proba,
+                    'val_proba': val_proba,
+                    'test_proba': test_proba
+                }
+
+                self.results[model_key] = {
+                    'train_metrics': train_metrics,
+                    'val_metrics': val_metrics,
+                    'test_metrics': test_metrics
+                }
+
+                print(
+                    f"   ✅ Train Acc: {train_metrics['accuracy']:.4f}, Val Acc: {val_metrics['accuracy']:.4f}, Test Acc: {test_metrics['accuracy']:.4f}")
+
+            except Exception as e:
+                print(f"   ❌ Failed to train {config['name']}: {e}")
+
+        print("\n✅ All custom models trained successfully!")
         return True
 
     def _calculate_metrics(self, y_true, y_pred):
@@ -243,8 +272,8 @@ class CompleteAnalysisWorkflow:
                 'misclassification_rate': total_misclassified / total_samples,
                 'false_positives': len(false_positives),
                 'false_negatives': len(false_negatives),
-                'fp_rate': len(false_positives) / np.sum(y_true == 0),
-                'fn_rate': len(false_negatives) / np.sum(y_true == 1)
+                'fp_rate': len(false_positives) / np.sum(y_true == 0) if np.sum(y_true == 0) > 0 else 0,
+                'fn_rate': len(false_negatives) / np.sum(y_true == 1) if np.sum(y_true == 1) > 0 else 0
             }
 
             self.misclassification_analysis[model_key] = analysis
@@ -253,38 +282,6 @@ class CompleteAnalysisWorkflow:
                 f"   Total misclassified: {total_misclassified}/{total_samples} ({analysis['misclassification_rate']:.1%})")
             print(f"   False positives: {len(false_positives)} ({analysis['fp_rate']:.1%} of negatives)")
             print(f"   False negatives: {len(false_negatives)} ({analysis['fn_rate']:.1%} of positives)")
-
-            # Analyze feature patterns in misclassified examples if we have original features
-            if hasattr(self, 'data') and len(misclassified_indices) > 0:
-                self._analyze_misclassified_features(model_key, misclassified_indices)
-
-    def _analyze_misclassified_features(self, model_key, misclassified_indices):
-        """Analyze feature patterns in misclassified examples"""
-
-        # Note: This is a simplified analysis since we've standardized the features
-        # In practice, you'd want to inverse transform or work with original features
-
-        print(f"   📈 Feature analysis for misclassified examples...")
-
-        # Get feature statistics for misclassified vs correctly classified
-        X_test_misclassified = self.X_test[misclassified_indices]
-        correctly_classified_indices = np.setdiff1d(np.arange(len(self.X_test)), misclassified_indices)
-        X_test_correct = self.X_test[correctly_classified_indices]
-
-        # Calculate mean differences (simplified analysis)
-        feature_names = [f'feature_{i}' for i in range(self.X_test.shape[1])]
-
-        mean_misclassified = np.mean(X_test_misclassified, axis=0)
-        mean_correct = np.mean(X_test_correct, axis=0)
-        feature_differences = np.abs(mean_misclassified - mean_correct)
-
-        # Find top features that differ most in misclassified examples
-        top_diff_features = np.argsort(feature_differences)[-3:]
-
-        print(f"      Top distinguishing features in misclassified examples:")
-        for i, feature_idx in enumerate(reversed(top_diff_features)):
-            diff = feature_differences[feature_idx]
-            print(f"      {i + 1}. {feature_names[feature_idx]}: {diff:.3f} difference")
 
     def create_comprehensive_visualizations(self):
         """Create comprehensive visualizations for analysis"""
@@ -303,9 +300,6 @@ class CompleteAnalysisWorkflow:
 
         # 4. Misclassification Analysis
         self._plot_misclassification_analysis()
-
-        # 5. Learning Curves (simplified)
-        self._plot_learning_curves()
 
     def _plot_model_comparison(self):
         """Plot model performance comparison"""
@@ -332,9 +326,10 @@ class CompleteAnalysisWorkflow:
 
             ax.set_xlabel('Models')
             ax.set_ylabel(name)
-            ax.set_title(f'{name} Comparison')
+            ax.set_title(f'{name} Comparison (SMOTE)')
             ax.set_xticks(x)
-            ax.set_xticklabels([self.models[m]['name'] for m in models], rotation=45, ha='right')
+            ax.set_xticklabels([self.models[m]['name'].replace(' (Custom)', '') for m in models], rotation=45,
+                               ha='right')
             ax.legend()
             ax.grid(True, alpha=0.3)
 
@@ -345,7 +340,7 @@ class CompleteAnalysisWorkflow:
         """Plot confusion matrices for all models"""
 
         n_models = len(self.models)
-        cols = min(n_models, 3)
+        cols = min(n_models, 2)
         rows = (n_models + cols - 1) // cols
 
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
@@ -372,7 +367,8 @@ class CompleteAnalysisWorkflow:
 
         # Hide unused subplots
         for i in range(n_models, len(axes)):
-            axes[i].set_visible(False)
+            if i < len(axes):
+                axes[i].set_visible(False)
 
         plt.tight_layout()
         plt.show()
@@ -397,7 +393,7 @@ class CompleteAnalysisWorkflow:
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        plt.title('ROC Curves Comparison')
+        plt.title('ROC Curves Comparison (SMOTE)')
         plt.legend(loc="lower right")
         plt.grid(True, alpha=0.3)
         plt.show()
@@ -408,7 +404,7 @@ class CompleteAnalysisWorkflow:
         fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
         models = list(self.models.keys())
-        model_names = [self.models[m]['name'] for m in models]
+        model_names = [self.models[m]['name'].replace(' (Custom)', '') for m in models]
 
         # Misclassification rates
         misclass_rates = [self.misclassification_analysis[m]['misclassification_rate'] for m in models]
@@ -416,7 +412,7 @@ class CompleteAnalysisWorkflow:
         bars = axes[0].bar(range(len(models)), misclass_rates, color='lightcoral', alpha=0.7)
         axes[0].set_xlabel('Models')
         axes[0].set_ylabel('Misclassification Rate')
-        axes[0].set_title('Misclassification Rates by Model')
+        axes[0].set_title('Misclassification Rates by Model (SMOTE)')
         axes[0].set_xticks(range(len(models)))
         axes[0].set_xticklabels(model_names, rotation=45, ha='right')
         axes[0].grid(True, alpha=0.3)
@@ -433,7 +429,7 @@ class CompleteAnalysisWorkflow:
         bars = axes[1].bar(range(len(models)), fp_rates, color='orange', alpha=0.7)
         axes[1].set_xlabel('Models')
         axes[1].set_ylabel('False Positive Rate')
-        axes[1].set_title('False Positive Rates')
+        axes[1].set_title('False Positive Rates (SMOTE)')
         axes[1].set_xticks(range(len(models)))
         axes[1].set_xticklabels(model_names, rotation=45, ha='right')
         axes[1].grid(True, alpha=0.3)
@@ -449,7 +445,7 @@ class CompleteAnalysisWorkflow:
         bars = axes[2].bar(range(len(models)), fn_rates, color='lightblue', alpha=0.7)
         axes[2].set_xlabel('Models')
         axes[2].set_ylabel('False Negative Rate')
-        axes[2].set_title('False Negative Rates')
+        axes[2].set_title('False Negative Rates (SMOTE)')
         axes[2].set_xticks(range(len(models)))
         axes[2].set_xticklabels(model_names, rotation=45, ha='right')
         axes[2].grid(True, alpha=0.3)
@@ -462,57 +458,10 @@ class CompleteAnalysisWorkflow:
         plt.tight_layout()
         plt.show()
 
-    def _plot_learning_curves(self):
-        """Plot simplified learning curves"""
-
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        axes = axes.flatten()
-
-        for i, (model_key, model_data) in enumerate(self.models.items()):
-            if i >= len(axes):
-                break
-
-            ax = axes[i]
-
-            # Get metrics for train/val/test
-            train_acc = self.results[model_key]['train_metrics']['accuracy']
-            val_acc = self.results[model_key]['val_metrics']['accuracy']
-            test_acc = self.results[model_key]['test_metrics']['accuracy']
-
-            # Create a simple learning curve visualization
-            stages = ['Train', 'Validation', 'Test']
-            accuracies = [train_acc, val_acc, test_acc]
-            colors = ['green', 'orange', 'red']
-
-            bars = ax.bar(stages, accuracies, color=colors, alpha=0.7)
-            ax.set_ylabel('Accuracy')
-            ax.set_title(f'{model_data["name"]} - Performance by Stage')
-            ax.set_ylim(0, 1)
-            ax.grid(True, alpha=0.3)
-
-            # Add value labels
-            for bar, acc in zip(bars, accuracies):
-                height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width() / 2., height + 0.01,
-                        f'{acc:.3f}', ha='center', va='bottom')
-
-            # Check for overfitting
-            if train_acc - val_acc > 0.05:
-                ax.text(0.5, 0.5, 'Potential\nOverfitting', transform=ax.transAxes,
-                        ha='center', va='center', fontsize=12, color='red',
-                        bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
-
-        # Hide unused subplots
-        for i in range(len(self.models), len(axes)):
-            axes[i].set_visible(False)
-
-        plt.tight_layout()
-        plt.show()
-
     def generate_final_report(self):
         """Generate final analysis report"""
 
-        print("\n📋 FINAL ANALYSIS REPORT")
+        print("\n📋 FINAL ANALYSIS REPORT (SMOTE)")
         print("=" * 70)
 
         # Find best model
@@ -557,29 +506,7 @@ class CompleteAnalysisWorkflow:
             else:
                 print(f"      → Model shows balanced error distribution")
 
-        # Recommendations
-        print(f"\n💡 RECOMMENDATIONS:")
-
-        # Check for class imbalance issues
-        class_dist = pd.Series(self.y_test).value_counts()
-        if class_dist.max() / class_dist.min() > 1.5:
-            print("   📊 Dataset shows class imbalance - consider SMOTE or class weights")
-
-        # Model complexity recommendations
-        simple_models = ['logistic_regression', 'svm_linear']
-        complex_models = [k for k in self.models.keys() if k not in simple_models]
-
-        if complex_models and simple_models:
-            simple_avg_f1 = np.mean([self.results[k]['test_metrics']['f1'] for k in simple_models if k in self.results])
-            complex_avg_f1 = np.mean(
-                [self.results[k]['test_metrics']['f1'] for k in complex_models if k in self.results])
-
-            if complex_avg_f1 > simple_avg_f1 + 0.02:
-                print("   🎯 Complex models show significant improvement - use them for better performance")
-            else:
-                print("   ⚡ Simple models perform comparably - consider them for faster inference")
-
-        print(f"\n✅ Analysis complete! Check visualizations above for detailed insights.")
+        print(f"\n✅ Analysis complete with SMOTE oversampling! Check visualizations above for detailed insights.")
 
         return {
             'best_model': best_model_key,
@@ -600,7 +527,8 @@ class CompleteAnalysisWorkflow:
                 'train_samples': len(self.X_train) if self.X_train is not None else 0,
                 'val_samples': len(self.X_val) if self.X_val is not None else 0,
                 'test_samples': len(self.X_test) if self.X_test is not None else 0,
-                'features': self.X_train.shape[1] if self.X_train is not None else 0
+                'features': self.X_train.shape[1] if self.X_train is not None else 0,
+                'smote_applied': True
             },
             'model_results': self.results,
             'misclassification_analysis': self.misclassification_analysis,
@@ -608,12 +536,12 @@ class CompleteAnalysisWorkflow:
         }
 
         # Save as JSON
-        json_path = os.path.join(self.results_dir, f'complete_analysis_{timestamp}.json')
+        json_path = os.path.join(self.results_dir, f'smote_analysis_{timestamp}.json')
         with open(json_path, 'w') as f:
             json.dump(complete_results, f, indent=2, default=str)
 
         # Save as pickle (with full objects)
-        pickle_path = os.path.join(self.results_dir, f'complete_analysis_{timestamp}.pkl')
+        pickle_path = os.path.join(self.results_dir, f'smote_analysis_{timestamp}.pkl')
         with open(pickle_path, 'wb') as f:
             pickle.dump({
                 'results': complete_results,
@@ -627,16 +555,16 @@ class CompleteAnalysisWorkflow:
         return json_path, pickle_path
 
     def run_complete_analysis(self, red_path="data/winequality-red.csv",
-                              white_path="data/winequality-white.csv", apply_smote=False):
-        """Run the complete analysis workflow"""
+                              white_path="data/winequality-white.csv"):
+        """Run the complete analysis workflow with SMOTE"""
 
         try:
-            # Step 1: Load and preprocess data
-            if not self.load_and_preprocess_data(red_path, white_path, apply_smote):
+            # Step 1: Load and preprocess data with SMOTE
+            if not self.load_and_preprocess_data(red_path, white_path):
                 return False
 
-            # Step 2: Train models
-            if not self.train_models():
+            # Step 2: Train custom models
+            if not self.train_custom_models():
                 return False
 
             # Step 3: Analyze misclassifications
@@ -651,7 +579,7 @@ class CompleteAnalysisWorkflow:
             # Step 6: Save results
             self.save_complete_results()
 
-            print(f"\n🎉 COMPLETE ANALYSIS FINISHED SUCCESSFULLY!")
+            print(f"\n🎉 COMPLETE SMOTE ANALYSIS FINISHED SUCCESSFULLY!")
             return True
 
         except Exception as e:
@@ -662,222 +590,168 @@ class CompleteAnalysisWorkflow:
 
 
 # Example usage
-def run_workflow_example():
-    """Example of how to use the complete workflow"""
+def run_smote_workflow():
+    """Example of how to use the SMOTE workflow"""
 
     # Create workflow instance
     workflow = CompleteAnalysisWorkflow(results_dir="results")
 
-    # Run complete analysis
+    # Run complete analysis with SMOTE
     success = workflow.run_complete_analysis(
         red_path="data/winequality-red.csv",
-        white_path="data/winequality-white.csv",
-        apply_smote=False  # Set to True to test SMOTE
+        white_path="data/winequality-white.csv"
     )
 
     if success:
-        print("🎉 Workflow completed successfully!")
-
-        # You can also run with SMOTE for comparison
-        print("\n🔄 Running with SMOTE for comparison...")
-        workflow_smote = CompleteAnalysisWorkflow(results_dir="results")
-        workflow_smote.run_complete_analysis(
-            red_path="data/winequality-red.csv",
-            white_path="data/winequality-white.csv",
-            apply_smote=True
-        )
+        print("🎉 SMOTE Workflow completed successfully!")
     else:
-        print("❌ Workflow failed!")
+        print("❌ SMOTE Workflow failed!")
 
     return workflow
 
 
-# Additional utility functions for loading and comparing saved results
-def load_and_compare_results(results_dir="results"):
-    """Load and compare multiple saved results"""
+# Additional utility functions for loading and analyzing saved results
+def load_smote_results(results_dir="results"):
+    """Load SMOTE analysis results"""
 
     import glob
 
-    # Find all result files
-    json_files = glob.glob(os.path.join(results_dir, "complete_analysis_*.json"))
+    # Find all SMOTE result files
+    json_files = glob.glob(os.path.join(results_dir, "smote_analysis_*.json"))
 
-    if len(json_files) < 2:
-        print("❌ Need at least 2 result files to compare")
-        return
+    if not json_files:
+        print("❌ No SMOTE result files found")
+        return None
 
-    # Load the two most recent results
+    # Load the most recent results
     json_files.sort(key=lambda x: os.path.getctime(x), reverse=True)
+    latest_file = json_files[0]
 
-    print("📊 COMPARING RECENT RESULTS")
+    print("📊 LOADING SMOTE RESULTS")
     print("=" * 50)
 
-    results = {}
-    for i, file_path in enumerate(json_files[:2]):
-        with open(file_path, 'r') as f:
-            data = json.load(f)
+    with open(latest_file, 'r') as f:
+        data = json.load(f)
 
-        filename = os.path.basename(file_path)
-        experiment_name = f"Experiment {i + 1} ({filename.split('_')[-1].replace('.json', '')})"
-        results[experiment_name] = data
+    filename = os.path.basename(latest_file)
+    print(f"📁 Loaded: {filename}")
+    print(f"   Timestamp: {data['timestamp']}")
+    print(f"   Total samples: {data['data_info']['total_samples']}")
+    print(f"   Training samples (with SMOTE): {data['data_info']['train_samples']}")
 
-        print(f"\n📁 {experiment_name}:")
-        print(f"   File: {filename}")
-        print(f"   Timestamp: {data['timestamp']}")
-        print(f"   Samples: {data['data_info']['total_samples']}")
-
-    # Compare model performance
-    print(f"\n🏆 MODEL PERFORMANCE COMPARISON:")
+    # Display model performance
+    print(f"\n🏆 MODEL PERFORMANCE:")
     print("-" * 40)
 
-    experiments = list(results.keys())
+    for model_key, model_results in data['model_results'].items():
+        model_name = data['models_info'][model_key]['name']
+        test_metrics = model_results['test_metrics']
 
-    # Get all unique models across experiments
-    all_models = set()
-    for exp_data in results.values():
-        all_models.update(exp_data['model_results'].keys())
+        print(f"\n📈 {model_name}:")
+        print(f"   Accuracy: {test_metrics['accuracy']:.4f}")
+        print(f"   F1-Score: {test_metrics['f1']:.4f}")
+        print(f"   Precision: {test_metrics['precision']:.4f}")
+        print(f"   Recall: {test_metrics['recall']:.4f}")
 
-    # Compare each model
-    for model in sorted(all_models):
-        print(f"\n📈 {model.replace('_', ' ').title()}:")
-
-        for exp_name in experiments:
-            exp_data = results[exp_name]
-            if model in exp_data['model_results']:
-                test_metrics = exp_data['model_results'][model]['test_metrics']
-                print(f"   {exp_name}:")
-                print(f"      Accuracy: {test_metrics['accuracy']:.4f}")
-                print(f"      F1-Score: {test_metrics['f1']:.4f}")
-                print(f"      Precision: {test_metrics['precision']:.4f}")
-                print(f"      Recall: {test_metrics['recall']:.4f}")
-            else:
-                print(f"   {exp_name}: Not available")
-
-    return results
+    return data
 
 
-def create_comparison_plots(results_dir="results"):
-    """Create comparison plots from saved results"""
+def create_smote_comparison_plots(results_dir="results"):
+    """Create comparison plots from SMOTE results"""
 
-    results = load_and_compare_results(results_dir)
+    data = load_smote_results(results_dir)
 
-    if not results or len(results) < 2:
+    if not data:
         return
 
-    # Create comparison visualization
+    # Create performance comparison visualization
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
     metrics = ['accuracy', 'f1', 'precision', 'recall']
     metric_names = ['Accuracy', 'F1-Score', 'Precision', 'Recall']
 
-    experiments = list(results.keys())
-
     for i, (metric, metric_name) in enumerate(zip(metrics, metric_names)):
         ax = axes[i // 2, i % 2]
 
-        # Get all models
-        all_models = set()
-        for exp_data in results.values():
-            all_models.update(exp_data['model_results'].keys())
+        models = list(data['model_results'].keys())
+        model_names = [data['models_info'][m]['name'].replace(' (Custom)', '') for m in models]
 
-        models = sorted(all_models)
-        x = np.arange(len(models))
-        width = 0.35
-
-        # Plot bars for each experiment
+        # Get test scores
+        scores = [data['model_results'][m]['test_metrics'][metric] for m in models]
         colors = ['skyblue', 'lightgreen', 'lightcoral', 'gold']
 
-        for j, exp_name in enumerate(experiments):
-            exp_data = results[exp_name]
-            scores = []
+        bars = ax.bar(range(len(models)), scores, color=colors[:len(models)], alpha=0.8)
 
-            for model in models:
-                if model in exp_data['model_results']:
-                    score = exp_data['model_results'][model]['test_metrics'][metric]
-                    scores.append(score)
-                else:
-                    scores.append(0)  # Missing model
-
-            bars = ax.bar(x + j * width - width / 2 * (len(experiments) - 1), scores, width,
-                          label=exp_name, color=colors[j % len(colors)], alpha=0.8)
-
-            # Add value labels
-            for bar, score in zip(bars, scores):
-                if score > 0:  # Only label non-zero scores
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width() / 2., height + 0.01,
-                            f'{score:.3f}', ha='center', va='bottom', fontsize=8)
+        # Add value labels
+        for bar, score in zip(bars, scores):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2., height + 0.01,
+                    f'{score:.3f}', ha='center', va='bottom', fontsize=10)
 
         ax.set_xlabel('Models')
         ax.set_ylabel(metric_name)
-        ax.set_title(f'{metric_name} Comparison')
-        ax.set_xticks(x)
-        ax.set_xticklabels([m.replace('_', '\n') for m in models], rotation=45, ha='right')
-        ax.legend()
+        ax.set_title(f'{metric_name} Comparison (SMOTE)')
+        ax.set_xticks(range(len(models)))
+        ax.set_xticklabels(model_names, rotation=45, ha='right')
         ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.show()
 
 
-def export_results_to_csv(results_dir="results", output_file="model_comparison.csv"):
-    """Export results to CSV for external analysis"""
+def export_smote_results_to_csv(results_dir="results", output_file="smote_model_results.csv"):
+    """Export SMOTE results to CSV for external analysis"""
 
-    import glob
+    data = load_smote_results(results_dir)
 
-    # Find all result files
-    json_files = glob.glob(os.path.join(results_dir, "complete_analysis_*.json"))
-
-    if not json_files:
-        print("❌ No result files found")
+    if not data:
         return
 
     # Prepare data for CSV
     csv_data = []
 
-    for file_path in json_files:
-        with open(file_path, 'r') as f:
-            data = json.load(f)
+    timestamp = data['timestamp']
+    experiment_id = f"smote_{timestamp}"
 
-        timestamp = data['timestamp']
-        experiment_id = os.path.basename(file_path).replace('.json', '')
+    # Extract model results
+    for model_name, model_results in data['model_results'].items():
+        model_display_name = data['models_info'][model_name]['name']
 
-        # Extract model results
-        for model_name, model_results in data['model_results'].items():
-            for split in ['train_metrics', 'val_metrics', 'test_metrics']:
-                if split in model_results:
-                    metrics = model_results[split]
+        for split in ['train_metrics', 'val_metrics', 'test_metrics']:
+            if split in model_results:
+                metrics = model_results[split]
 
-                    row = {
-                        'experiment_id': experiment_id,
-                        'timestamp': timestamp,
-                        'model': model_name,
-                        'split': split.replace('_metrics', ''),
-                        'accuracy': metrics['accuracy'],
-                        'precision': metrics['precision'],
-                        'recall': metrics['recall'],
-                        'f1': metrics['f1']
-                    }
+                row = {
+                    'experiment_id': experiment_id,
+                    'timestamp': timestamp,
+                    'model': model_display_name,
+                    'split': split.replace('_metrics', ''),
+                    'accuracy': metrics['accuracy'],
+                    'precision': metrics['precision'],
+                    'recall': metrics['recall'],
+                    'f1': metrics['f1'],
+                    'smote_applied': True
+                }
 
-                    # Add misclassification data if available
-                    if split == 'test_metrics' and 'misclassification_analysis' in data:
-                        if model_name in data['misclassification_analysis']:
-                            misc_data = data['misclassification_analysis'][model_name]
-                            row.update({
-                                'misclassification_rate': misc_data['misclassification_rate'],
-                                'false_positive_rate': misc_data['fp_rate'],
-                                'false_negative_rate': misc_data['fn_rate']
-                            })
+                # Add misclassification data if available
+                if split == 'test_metrics' and 'misclassification_analysis' in data:
+                    if model_name in data['misclassification_analysis']:
+                        misc_data = data['misclassification_analysis'][model_name]
+                        row.update({
+                            'misclassification_rate': misc_data['misclassification_rate'],
+                            'false_positive_rate': misc_data['fp_rate'],
+                            'false_negative_rate': misc_data['fn_rate']
+                        })
 
-                    csv_data.append(row)
+                csv_data.append(row)
 
     # Create DataFrame and save
     df = pd.DataFrame(csv_data)
     output_path = os.path.join(results_dir, output_file)
     df.to_csv(output_path, index=False)
 
-    print(f"📊 Results exported to: {output_path}")
+    print(f"📊 SMOTE Results exported to: {output_path}")
     print(f"   Total rows: {len(df)}")
-    print(f"   Experiments: {df['experiment_id'].nunique()}")
     print(f"   Models: {df['model'].nunique()}")
 
     return df
@@ -885,104 +759,62 @@ def export_results_to_csv(results_dir="results", output_file="model_comparison.c
 
 # Main execution
 if __name__ == "__main__":
-    print("🍷 Wine Quality Classification - Complete Analysis Workflow")
+    print("🍷 Wine Quality Classification - Complete Analysis Workflow (SMOTE Only)")
     print("=" * 70)
     print("This script provides a complete workflow for:")
-    print("✅ Data loading and preprocessing")
-    print("✅ Model training and evaluation")
+    print("✅ Data loading and preprocessing with SMOTE")
+    print("✅ Custom model training and evaluation")
     print("✅ Comprehensive performance analysis")
     print("✅ Misclassification pattern analysis")
-    print("✅ Overfitting/underfitting detection")
     print("✅ Detailed visualizations")
     print("✅ Results saving and comparison")
     print("\n📋 Usage Examples:")
     print("=" * 30)
-    print("# Run complete analysis:")
+    print("# Run complete SMOTE analysis:")
     print("workflow = CompleteAnalysisWorkflow()")
     print("workflow.run_complete_analysis()")
     print("")
-    print("# Compare saved results:")
-    print("load_and_compare_results('results')")
+    print("# Load and analyze saved results:")
+    print("load_smote_results('results')")
     print("")
     print("# Create comparison plots:")
-    print("create_comparison_plots('results')")
+    print("create_smote_comparison_plots('results')")
     print("")
     print("# Export to CSV:")
-    print("export_results_to_csv('results')")
-    print("\n🚀 Ready to run analysis!")
+    print("export_smote_results_to_csv('results')")
+    print("\n🚀 Ready to run SMOTE analysis!")
 
 
-# Additional helper class for notebook integration
-class NotebookAnalysisHelper:
-    """Helper class for Jupyter notebook integration"""
+# Notebook helper class for SMOTE only
+class SMOTEAnalysisHelper:
+    """Helper class for SMOTE analysis in Jupyter notebooks"""
 
     @staticmethod
-    def quick_analysis(red_path="data/winequality-red.csv",
-                       white_path="data/winequality-white.csv"):
-        """Quick analysis for notebook environments"""
+    def quick_smote_analysis(red_path="data/winequality-red.csv",
+                             white_path="data/winequality-white.csv"):
+        """Quick SMOTE analysis for notebook environments"""
 
         workflow = CompleteAnalysisWorkflow()
-        success = workflow.run_complete_analysis(red_path, white_path, apply_smote=False)
+        success = workflow.run_complete_analysis(red_path, white_path)
 
         if success:
-            print("\n✅ Quick analysis completed!")
+            print("\n✅ Quick SMOTE analysis completed!")
             return workflow
         else:
-            print("\n❌ Quick analysis failed!")
+            print("\n❌ Quick SMOTE analysis failed!")
             return None
 
     @staticmethod
-    def compare_smote_vs_baseline(red_path="data/winequality-red.csv",
-                                  white_path="data/winequality-white.csv"):
-        """Compare SMOTE vs baseline in one go"""
+    def analyze_existing_smote_results(results_dir="results"):
+        """Analyze existing SMOTE results"""
 
-        print("🔄 Running Baseline vs SMOTE Comparison...")
-
-        # Baseline
-        print("\n1️⃣ Running Baseline Analysis...")
-        baseline_workflow = CompleteAnalysisWorkflow(results_dir="results/baseline")
-        baseline_success = baseline_workflow.run_complete_analysis(red_path, white_path, apply_smote=False)
-
-        # SMOTE
-        print("\n2️⃣ Running SMOTE Analysis...")
-        smote_workflow = CompleteAnalysisWorkflow(results_dir="results/smote")
-        smote_success = smote_workflow.run_complete_analysis(red_path, white_path, apply_smote=True)
-
-        if baseline_success and smote_success:
-            # Create direct comparison
-            print("\n📊 DIRECT COMPARISON:")
-            print("=" * 50)
-
-            for model_key in baseline_workflow.models.keys():
-                if model_key in smote_workflow.models:
-                    baseline_f1 = baseline_workflow.results[model_key]['test_metrics']['f1']
-                    smote_f1 = smote_workflow.results[model_key]['test_metrics']['f1']
-                    improvement = smote_f1 - baseline_f1
-
-                    model_name = baseline_workflow.models[model_key]['name']
-                    status = "📈" if improvement > 0.01 else "📉" if improvement < -0.01 else "➖"
-
-                    print(f"{status} {model_name}:")
-                    print(f"   Baseline F1: {baseline_f1:.4f}")
-                    print(f"   SMOTE F1: {smote_f1:.4f}")
-                    print(f"   Improvement: {improvement:+.4f}")
-
-            return baseline_workflow, smote_workflow
-        else:
-            print("❌ Comparison failed!")
-            return None, None
-
-    @staticmethod
-    def load_and_analyze_existing(results_dir="results"):
-        """Load existing results and create analysis"""
-
-        results = load_and_compare_results(results_dir)
+        results = load_smote_results(results_dir)
         if results:
-            create_comparison_plots(results_dir)
-            export_results_to_csv(results_dir)
+            create_smote_comparison_plots(results_dir)
+            export_smote_results_to_csv(results_dir)
 
         return results
 
 
-print("\n🎯 All workflow components ready!")
-print("Use CompleteAnalysisWorkflow() to start your analysis!")
+print("\n🎯 All SMOTE workflow components ready!")
+print("Use CompleteAnalysisWorkflow() to start your SMOTE analysis!")

@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, f1_score , confusion_matrix# evaluation
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
 
 def comprehensive_evaluation(y_true, y_pred, model_name="Model"):
@@ -27,38 +27,3 @@ def comprehensive_evaluation(y_true, y_pred, model_name="Model"):
         'recall': recall,
         'f1': f1
     }
-
-def print_comparison_table(results_baseline, results_smote):
-    """Print a comparison table of results"""
-    print(f"\n{'=' * 100}")
-    print("📊 DETAILED COMPARISON: BASELINE vs SMOTE")
-    print(f"{'=' * 100}")
-
-    headers = ["Model", "Baseline Acc", "Baseline F1", "SMOTE Acc", "SMOTE F1", "F1 Improvement"]
-    print(f"{headers[0]:<25} {headers[1]:<13} {headers[2]:<12} {headers[3]:<10} {headers[4]:<9} {headers[5]:<15}")
-    print("-" * 100)
-
-    model_names = {
-        'lr_scratch': 'LR (Scratch)',
-        'lr_sklearn': 'LR (sklearn)',
-        'svm_scratch': 'SVM (Scratch)',
-        'svm_sklearn': 'SVM (sklearn)',
-        'klr_scratch': 'Kernel LR',
-        'ksvm_scratch': 'Kernel SVM',
-        'rbf_svm_sklearn': 'RBF SVM (sklearn)',
-        'poly_svm_sklearn': 'Poly SVM (sklearn)'
-    }
-
-    for key in results_baseline.keys():
-        if key in results_smote:
-            baseline_acc = results_baseline[key]['accuracy']
-            baseline_f1 = results_baseline[key]['f1']
-            smote_acc = results_smote[key]['accuracy']
-            smote_f1 = results_smote[key]['f1']
-            f1_improvement = smote_f1 - baseline_f1
-
-            name = model_names.get(key, key)
-            improvement_str = f"+{f1_improvement:.4f}" if f1_improvement >= 0 else f"{f1_improvement:.4f}"
-
-            print(
-                f"{name:<25} {baseline_acc:<13.4f} {baseline_f1:<12.4f} {smote_acc:<10.4f} {smote_f1:<9.4f} {improvement_str:<15}")
