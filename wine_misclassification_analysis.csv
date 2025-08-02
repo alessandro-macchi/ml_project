@@ -1,0 +1,5 @@
+model,model_key,total_misclassified,misclassification_rate,false_positives,false_negatives,fp_rate,fn_rate,correct_avg_confidence,misclassified_avg_confidence,confidence_difference,low_confidence_misclassified,significant_features_count,significant_features
+Logistic Regression (Custom),lr_custom,350,0.2696456086286595,109,241,0.22899159663865545,0.29318734793187345,0.26478531863269117,0.1854408509763992,0.07934446765629197,95.0,5,residual_sugar; chlorides; total_sulfur_dioxide; density; alcohol
+Linear SVM (Custom),svm_custom,390,0.300462249614792,96,294,0.20168067226890757,0.35766423357664234,,,,,7,fixed_acidity; volatile_acidity; residual_sugar; chlorides; total_sulfur_dioxide; density; alcohol
+Kernel Logistic Regression (Custom),klr_custom,347,0.26733436055469956,99,248,0.20798319327731093,0.30170316301703165,0.23851832050443267,0.14257345245057046,0.09594486805386221,167.0,5,residual_sugar; chlorides; density; pH; alcohol
+Kernel SVM (Custom),ksvm_custom,355,0.27349768875192604,109,246,0.22899159663865545,0.29927007299270075,0.18843884047234447,0.12057793212949351,0.06786090834285095,173.0,4,residual_sugar; chlorides; density; alcohol
