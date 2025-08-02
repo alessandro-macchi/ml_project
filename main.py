@@ -7,14 +7,101 @@ from models.kernel_svm import run_kernel_svm_experiment
 from src.utils import create_named_kernels
 from src.save import save_results
 from src.visualization import integrate_with_experiment_results
+from src.misclassification_analysis import MisclassificationAnalyzer
+from src.hyperparameter_tuning import grid_search
+
+
+def run_logistic_regression_experiment_with_model(X_train, y_train, X_test, y_test, param_grid):
+    """Modified to return both results and trained model"""
+    from models.logistic_regression import LogisticRegressionScratch
+
+    print("🔍 Grid search for Logistic Regression...")
+    best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, param_grid)
+    print(f"✅ Best LR params: {best_params}, CV Accuracy: {best_score:.4f}")
+
+    model = LogisticRegressionScratch(**best_params)
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+
+    from src.metrics import comprehensive_evaluation
+    results = {'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")}
+
+    return results, model
+
+
+def run_svm_experiment_with_model(X_train, y_train, X_test, y_test, param_grid):
+    """Modified to return both results and trained model"""
+    from models.svm import SVMClassifierScratch
+
+    print("🔍 Grid search for Linear SVM...")
+    best_params, best_score = grid_search(X_train, y_train, SVMClassifierScratch, param_grid)
+    print(f"✅ Best SVM params: {best_params}, CV Accuracy: {best_score:.4f}")
+
+    model = SVMClassifierScratch(lambda_=best_params["lambda_"])
+    model.fit(X_train, y_train, max_iter=best_params["max_iter"])
+    preds = model.predict(X_test)
+
+    from src.metrics import comprehensive_evaluation
+    results = {'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")}
+
+    return results, model
+
+
+def run_kernel_logistic_regression_experiment_with_model(X_train, y_train, X_test, y_test, param_grid):
+    """Modified to return both results and trained model"""
+    from models.kernel_logistic_regression import KernelLogisticRegression
+
+    print("🔍 Grid search for Kernel Logistic Regression...")
+    best_params, best_score = grid_search(X_train, y_train, KernelLogisticRegression, param_grid)
+    print(f"✅ Best KLR params: {best_params}, CV Accuracy: {best_score:.4f}")
+
+    model = KernelLogisticRegression(
+        kernel=best_params["kernel"],
+        lambda_=best_params["lambda_"],
+        epochs=best_params["epochs"],
+        subsample_ratio=0.2,
+        batch_size=64,
+        early_stopping_patience=20
+    )
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+
+    from src.metrics import comprehensive_evaluation
+    results = {'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")}
+
+    return results, model
+
+
+def run_kernel_svm_experiment_with_model(X_train, y_train, X_test, y_test, param_grid):
+    """Modified to return both results and trained model"""
+    from models.kernel_svm import KernelPegasosSVM
+
+    print("🔍 Grid search for Kernel SVM (Pegasos)...")
+    best_params, best_score = grid_search(X_train, y_train, KernelPegasosSVM, param_grid)
+    print(f"✅ Best KSVM params: {best_params}, CV Accuracy: {best_score:.4f}")
+
+    model = KernelPegasosSVM(
+        kernel=best_params["kernel"],
+        lambda_=best_params["lambda_"],
+        max_iter=best_params["max_iter"]
+    )
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+
+    print(f"📊 Number of support vectors: {len(model.support_vectors)}")
+
+    from src.metrics import comprehensive_evaluation
+    results = {'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")}
+
+    return results, model
 
 
 def run_experiment(data, experiment_name=""):
     """
-    Enhanced version of your run_experiment function that includes visualizations
+    Enhanced version that includes comprehensive misclassification analysis
     """
     print(f"\n{'=' * 70}")
-    print(f"🧪 EXPERIMENT: {experiment_name}")
+    print(f"🧪 EXPERIMENT WITH ENHANCED ANALYSIS: {experiment_name}")
     print(f"{'=' * 70}")
 
     # Apply SMOTE only to Train, to avoid Data Leakage
@@ -25,6 +112,7 @@ def run_experiment(data, experiment_name=""):
     print(f"   Test samples: {len(X_test)}")
 
     results = {}
+    trained_models = {}
 
     # LOGISTIC REGRESSION
     print(f"\n🔹 Running Logistic Regression...")
@@ -34,8 +122,10 @@ def run_experiment(data, experiment_name=""):
         'epochs': [1000, 1200, 1500]
     }
 
-    lr_results = run_logistic_regression_experiment(X_train, y_train, X_test, y_test, lr_param_grid)
+    lr_results, lr_model = run_logistic_regression_experiment_with_model(X_train, y_train, X_test, y_test,
+                                                                         lr_param_grid)
     results.update(lr_results)
+    trained_models['lr_custom'] = lr_model
 
     # SVM
     print(f"\n🔹 Running SVM...")
@@ -44,8 +134,9 @@ def run_experiment(data, experiment_name=""):
         'max_iter': [1200, 1500, 2000, 3000],
     }
 
-    svm_results = run_svm_experiment(X_train, y_train, X_test, y_test, svm_param_grid)
+    svm_results, svm_model = run_svm_experiment_with_model(X_train, y_train, X_test, y_test, svm_param_grid)
     results.update(svm_results)
+    trained_models['svm_custom'] = svm_model
 
     # KERNEL LOGISTIC REGRESSION
     print(f"\n🔹 Running Kernel Logistic Regression...")
@@ -55,8 +146,10 @@ def run_experiment(data, experiment_name=""):
         "epochs": [500, 600]
     }
 
-    klr_results = run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, klr_param_grid)
+    klr_results, klr_model = run_kernel_logistic_regression_experiment_with_model(X_train, y_train, X_test, y_test,
+                                                                                  klr_param_grid)
     results.update(klr_results)
+    trained_models['klr_custom'] = klr_model
 
     # KERNEL SVM
     print(f"\n🔹 Running Kernel SVM...")
@@ -66,24 +159,47 @@ def run_experiment(data, experiment_name=""):
         "max_iter": [1000, 1500]
     }
 
-    ksvm_results = run_kernel_svm_experiment(X_train, y_train, X_test, y_test, ksvm_param_grid)
+    ksvm_results, ksvm_model = run_kernel_svm_experiment_with_model(X_train, y_train, X_test, y_test, ksvm_param_grid)
     results.update(ksvm_results)
+    trained_models['ksvm_custom'] = ksvm_model
 
-    # Print results (your existing function)
+    # Print results
     print_model_results(results, experiment_name)
 
-    # Save results (your existing function)
+    # Save results
     save_results(results, experiment_name)
 
-    # ADD VISUALIZATIONS
+    # STANDARD VISUALIZATIONS
     print(f"\n{'=' * 70}")
     print("🎨 GENERATING PERFORMANCE VISUALIZATIONS")
     print(f"{'=' * 70}")
 
-    # Create visualizations using the results
     visualizer = integrate_with_experiment_results(results, X_test, y_test)
 
-    return results
+    # ENHANCED MISCLASSIFICATION ANALYSIS
+    print(f"\n{'=' * 70}")
+    print("🔍 ENHANCED MISCLASSIFICATION ANALYSIS")
+    print(f"{'=' * 70}")
+
+    wine_feature_names = [
+        'fixed_acidity', 'volatile_acidity', 'citric_acid', 'residual_sugar',
+        'chlorides', 'free_sulfur_dioxide', 'total_sulfur_dioxide', 'density',
+        'pH', 'sulphates', 'alcohol', 'wine_type'
+    ]
+
+    model_names = {
+        'lr_custom': 'Logistic Regression (Custom)',
+        'svm_custom': 'Linear SVM (Custom)',
+        'klr_custom': 'Kernel Logistic Regression (Custom)',
+        'ksvm_custom': 'Kernel SVM (Custom)'
+    }
+
+    analyzer = MisclassificationAnalyzer()
+    analyzer.analyze_all_models(trained_models, X_test, y_test, wine_feature_names, model_names)
+    analyzer.create_comprehensive_analysis()
+    analyzer.export_analysis_results("wine_misclassification_analysis.csv")
+
+    return results, trained_models, analyzer
 
 
 def print_model_results(results, experiment_name):
@@ -103,9 +219,9 @@ def print_model_results(results, experiment_name):
 
 def main():
     """
-    Enhanced version of your main function with visualizations
+    Enhanced main function with comprehensive analysis
     """
-    print("🍷 WINE QUALITY CLASSIFICATION WITH VISUALIZATIONS")
+    print("🍷 WINE QUALITY CLASSIFICATION WITH ENHANCED ANALYSIS")
     print("=" * 80)
 
     red_path = os.path.join("data", "winequality-red.csv")
@@ -113,14 +229,20 @@ def main():
 
     data = load_and_combine_data(red_path, white_path)
 
-    print("\n🚀 Starting experiment with visualizations...")
+    print("\n🚀 Starting experiment with enhanced analysis...")
 
-    results = run_experiment(
+    results, trained_models, analyzer = run_experiment(
         data,
-        experiment_name="Wine Classification with SMOTE Oversampling and Visualizations"
+        experiment_name="Wine Classification with SMOTE and Enhanced Analysis"
     )
 
-    return results
+    print(f"\n{'=' * 80}")
+    print("🎉 ENHANCED ANALYSIS COMPLETE!")
+    print("📊 Check the visualizations and reports above for detailed insights.")
+    print("💾 Analysis results saved to: wine_misclassification_analysis.csv")
+    print(f"{'=' * 80}")
+
+    return results, trained_models, analyzer
 
 
 if __name__ == "__main__":
