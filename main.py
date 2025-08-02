@@ -6,24 +6,13 @@ from models.kernel_logistic_regression import run_kernel_logistic_regression_exp
 from models.kernel_svm import run_kernel_svm_experiment
 from src.utils import create_named_kernels
 from src.save import save_results
-
-
-def print_model_results(results, experiment_name):
-
-    for model_name, metrics in results.items():
-        print(f"\n🔹 {model_name}:")
-
-        if isinstance(metrics, dict) and 'accuracy' in metrics:
-            print(f"   Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
-            print(f"   Balanced Accuracy: {metrics.get('balanced_accuracy', 'N/A'):.4f}")
-            print(f"   Precision: {metrics.get('precision', 'N/A'):.4f}")
-            print(f"   Recall: {metrics.get('recall', 'N/A'):.4f}")
-            print(f"   F1-Score: {metrics.get('f1', 'N/A'):.4f}")
-        else:
-            print(f"   Raw result: {metrics}")
+from src.visualization import integrate_with_experiment_results
 
 
 def run_experiment(data, experiment_name=""):
+    """
+    Enhanced version of your run_experiment function that includes visualizations
+    """
     print(f"\n{'=' * 70}")
     print(f"🧪 EXPERIMENT: {experiment_name}")
     print(f"{'=' * 70}")
@@ -80,15 +69,43 @@ def run_experiment(data, experiment_name=""):
     ksvm_results = run_kernel_svm_experiment(X_train, y_train, X_test, y_test, ksvm_param_grid)
     results.update(ksvm_results)
 
+    # Print results (your existing function)
     print_model_results(results, experiment_name)
 
+    # Save results (your existing function)
     save_results(results, experiment_name)
+
+    # ADD VISUALIZATIONS
+    print(f"\n{'=' * 70}")
+    print("🎨 GENERATING PERFORMANCE VISUALIZATIONS")
+    print(f"{'=' * 70}")
+
+    # Create visualizations using the results
+    visualizer = integrate_with_experiment_results(results, X_test, y_test)
 
     return results
 
 
+def print_model_results(results, experiment_name):
+    """Your existing print function"""
+    for model_name, metrics in results.items():
+        print(f"\n🔹 {model_name}:")
+
+        if isinstance(metrics, dict) and 'accuracy' in metrics:
+            print(f"   Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
+            print(f"   Balanced Accuracy: {metrics.get('balanced_accuracy', 'N/A'):.4f}")
+            print(f"   Precision: {metrics.get('precision', 'N/A'):.4f}")
+            print(f"   Recall: {metrics.get('recall', 'N/A'):.4f}")
+            print(f"   F1-Score: {metrics.get('f1', 'N/A'):.4f}")
+        else:
+            print(f"   Raw result: {metrics}")
+
+
 def main():
-    print("🍷 WINE QUALITY CLASSIFICATION")
+    """
+    Enhanced version of your main function with visualizations
+    """
+    print("🍷 WINE QUALITY CLASSIFICATION WITH VISUALIZATIONS")
     print("=" * 80)
 
     red_path = os.path.join("data", "winequality-red.csv")
@@ -96,9 +113,15 @@ def main():
 
     data = load_and_combine_data(red_path, white_path)
 
-    print("\n🚀 Starting experiment...")
+    print("\n🚀 Starting experiment with visualizations...")
 
-    results = run_experiment(data, experiment_name="Wine Classification with SMOTE Oversampling")
+    results = run_experiment(
+        data,
+        experiment_name="Wine Classification with SMOTE Oversampling and Visualizations"
+    )
+
+    return results
+
 
 if __name__ == "__main__":
     main()
