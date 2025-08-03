@@ -236,10 +236,6 @@ class KernelPegasosSVM:
 
 
 def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print(f"\n{'=' * 50}")
-    print("🔍 KERNEL SVM (PEGASOS)")
-    print(f"{'=' * 50}")
-
     print("🔍 Grid search for Kernel SVM (Pegasos)...")
     best_params, best_score = grid_search(X_train, y_train, KernelPegasosSVM, param_grid)
     print(f"✅ Best KSVM params: {best_params}, CV Accuracy: {best_score:.4f}")
@@ -254,6 +250,6 @@ def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
 
     print(f"📊 Number of support vectors: {len(model.support_vectors)}")
 
-    return {
-        'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")
-    }
+    results = {'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")}
+
+    return results, model

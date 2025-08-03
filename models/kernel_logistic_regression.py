@@ -226,10 +226,6 @@ class KernelLogisticRegression:
 
 
 def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print(f"\n{'=' * 50}")
-    print("🔍 KERNEL LOGISTIC REGRESSION")
-    print(f"{'=' * 50}")
-
     print("🔍 Grid search for Kernel Logistic Regression...")
     best_params, best_score = grid_search(X_train, y_train, KernelLogisticRegression, param_grid)
     print(f"✅ Best KLR params: {best_params}, CV Accuracy: {best_score:.4f}")
@@ -245,6 +241,6 @@ def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, 
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
 
-    return {
-        'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")
-    }
+    results = {'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")}
+
+    return results, model

@@ -53,10 +53,6 @@ class LogisticRegressionScratch:
 
 
 def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print(f"\n{'=' * 50}")
-    print("🔍 LOGISTIC REGRESSION")
-    print(f"{'=' * 50}")
-
     print("🔍 Grid search for Logistic Regression...")
     best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, param_grid)
     print(f"✅ Best LR params: {best_params}, CV Accuracy: {best_score:.4f}")
@@ -65,6 +61,6 @@ def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_g
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
 
-    return {
-        'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")
-    }
+    results = {'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")}
+
+    return results, model

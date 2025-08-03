@@ -47,10 +47,6 @@ class SVMClassifierScratch:
 
 
 def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print(f"\n{'=' * 50}")
-    print("🔍 LINEAR SVM")
-    print(f"{'=' * 50}")
-
     print("🔍 Grid search for Linear SVM...")
     best_params, best_score = grid_search(X_train, y_train, SVMClassifierScratch, param_grid)
     print(f"✅ Best SVM params: {best_params}, CV Accuracy: {best_score:.4f}")
@@ -59,6 +55,6 @@ def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
     model.fit(X_train, y_train, max_iter=best_params["max_iter"])
     preds = model.predict(X_test)
 
-    return {
-        'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")
-    }
+    results = {'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")}
+
+    return results, model
