@@ -1162,25 +1162,6 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
     analyzer.create_comprehensive_analysis()
 
     # Export results
-    analyzer.export_analysis_results("overfitting_analysis.csv")
+    analyzer.export_analysis_results("results/overfitting_analysis.csv")
 
     return analyzer
-
-
-# Main execution
-if __name__ == "__main__":
-    print("🔍 Overfitting/Underfitting Analysis Module")
-    print("=" * 50)
-    print("This module provides comprehensive analysis to detect overfitting and underfitting.")
-    print("\n📋 Key Features:")
-    print("✅ Train vs test performance comparison")
-    print("✅ Learning curve generation and analysis")
-    print("✅ Training loss convergence analysis")
-    print("✅ Model complexity vs performance analysis")
-    print("✅ Automated fitting diagnosis with confidence scores")
-    print("✅ Comprehensive visualizations")
-    print("✅ Detailed reports with specific recommendations")
-    print("✅ Export capabilities for further analysis")
-    print("\n💡 Usage:")
-    example_usage()
-    print("\n🚀 Ready to analyze your model fitting!")
