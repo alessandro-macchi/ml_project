@@ -9,6 +9,7 @@ from src.save import save_results
 from src.visualization import integrate_with_experiment_results
 from src.misclassification_analysis import MisclassificationAnalyzer
 from src.hyperparameter_tuning import grid_search
+from src.overfitting_analysis import integrate_overfitting_analysis
 
 
 def run_logistic_regression_experiment_with_model(X_train, y_train, X_test, y_test, param_grid):
@@ -98,10 +99,10 @@ def run_kernel_svm_experiment_with_model(X_train, y_train, X_test, y_test, param
 
 def run_experiment(data, experiment_name=""):
     """
-    Enhanced version that includes comprehensive misclassification analysis
+    Enhanced version that includes comprehensive analysis including overfitting detection
     """
     print(f"\n{'=' * 70}")
-    print(f"🧪 EXPERIMENT WITH ENHANCED ANALYSIS: {experiment_name}")
+    print(f"🧪 EXPERIMENT WITH COMPREHENSIVE ANALYSIS: {experiment_name}")
     print(f"{'=' * 70}")
 
     # Apply SMOTE only to Train, to avoid Data Leakage
@@ -199,11 +200,24 @@ def run_experiment(data, experiment_name=""):
     analyzer.create_comprehensive_analysis()
     analyzer.export_analysis_results("wine_misclassification_analysis.csv")
 
-    return results, trained_models, analyzer
+    # NEW: OVERFITTING/UNDERFITTING ANALYSIS
+    print(f"\n{'=' * 70}")
+    print("🎯 OVERFITTING/UNDERFITTING ANALYSIS")
+    print(f"{'=' * 70}")
+
+    overfitting_analyzer = integrate_overfitting_analysis(
+        trained_models, X_train, y_train, X_test, y_test, model_names
+    )
+
+    return results, trained_models, analyzer, overfitting_analyzer
 
 
 def print_model_results(results, experiment_name):
-    """Your existing print function"""
+    """Print formatted results for all models"""
+    print(f"\n{'=' * 70}")
+    print(f"📊 RESULTS SUMMARY: {experiment_name}")
+    print(f"{'=' * 70}")
+
     for model_name, metrics in results.items():
         print(f"\n🔹 {model_name}:")
 
@@ -219,9 +233,9 @@ def print_model_results(results, experiment_name):
 
 def main():
     """
-    Enhanced main function with comprehensive analysis
+    Enhanced main function with comprehensive analysis including overfitting detection
     """
-    print("🍷 WINE QUALITY CLASSIFICATION WITH ENHANCED ANALYSIS")
+    print("🍷 WINE QUALITY CLASSIFICATION WITH COMPREHENSIVE ANALYSIS")
     print("=" * 80)
 
     red_path = os.path.join("data", "winequality-red.csv")
@@ -229,20 +243,88 @@ def main():
 
     data = load_and_combine_data(red_path, white_path)
 
-    print("\n🚀 Starting experiment with enhanced analysis...")
+    print("\n🚀 Starting experiment with comprehensive analysis...")
 
-    results, trained_models, analyzer = run_experiment(
+    results, trained_models, misclassification_analyzer, overfitting_analyzer = run_experiment(
         data,
-        experiment_name="Wine Classification with SMOTE and Enhanced Analysis"
+        experiment_name="Wine Classification with SMOTE and Comprehensive Analysis"
     )
 
     print(f"\n{'=' * 80}")
-    print("🎉 ENHANCED ANALYSIS COMPLETE!")
+    print("🎉 COMPREHENSIVE ANALYSIS COMPLETE!")
     print("📊 Check the visualizations and reports above for detailed insights.")
-    print("💾 Analysis results saved to: wine_misclassification_analysis.csv")
+    print("💾 Analysis results saved to:")
+    print("   • wine_misclassification_analysis.csv")
+    print("   • overfitting_analysis.csv")
     print(f"{'=' * 80}")
 
-    return results, trained_models, analyzer
+    # Generate final summary report
+    print(f"\n{'=' * 80}")
+    print("📋 FINAL SUMMARY REPORT")
+    print(f"{'=' * 80}")
+
+    # Best performing model
+    best_model = max(results.items(), key=lambda x: x[1]['accuracy'])
+    print(f"🏆 Best performing model: {best_model[0]} (Accuracy: {best_model[1]['accuracy']:.4f})")
+
+    # Model names for display
+    model_names = {
+        'lr_custom': 'Logistic Regression (Custom)',
+        'svm_custom': 'Linear SVM (Custom)',
+        'klr_custom': 'Kernel Logistic Regression (Custom)',
+        'ksvm_custom': 'Kernel SVM (Custom)'
+    }
+
+    # Overfitting summary
+    overfitting_summary = {}
+    for model_key, analysis in overfitting_analyzer.analysis_results.items():
+        status = analysis['fitting_diagnosis']['fitting_status']
+        overfitting_summary[model_key] = status
+
+    print(f"🎯 Overfitting status summary:")
+    for model_key, status in overfitting_summary.items():
+        emoji = {'overfitting': '🔴', 'underfitting': '🟡', 'good_fit': '🟢', 'inconclusive': '⚪'}.get(status, '⚪')
+        model_name = model_names.get(model_key, model_key)
+        print(f"   {emoji} {model_name}: {status.upper()}")
+
+    # Performance summary
+    print(f"\n📈 Performance summary:")
+    for model_key, metrics in results.items():
+        if isinstance(metrics, dict) and 'accuracy' in metrics:
+            model_name = model_names.get(model_key, model_key)
+            accuracy = metrics['accuracy']
+            f1 = metrics['f1']
+            print(f"   📊 {model_name}: Accuracy={accuracy:.4f}, F1={f1:.4f}")
+
+    # General recommendations
+    print(f"\n💡 FINAL RECOMMENDATIONS:")
+
+    overfitting_models = [k for k, v in overfitting_summary.items() if v == 'overfitting']
+    underfitting_models = [k for k, v in overfitting_summary.items() if v == 'underfitting']
+    good_fit_models = [k for k, v in overfitting_summary.items() if v == 'good_fit']
+
+    if good_fit_models:
+        print(f"✅ Well-fitted models: {', '.join([model_names.get(k, k) for k in good_fit_models])}")
+        print("   → These models are ready for production use")
+
+    if overfitting_models:
+        print(f"🔴 Overfitting detected in: {', '.join([model_names.get(k, k) for k in overfitting_models])}")
+        print("   → Consider: increased regularization, more data, or simpler models")
+
+    if underfitting_models:
+        print(f"🟡 Underfitting detected in: {', '.join([model_names.get(k, k) for k in underfitting_models])}")
+        print("   → Consider: reduced regularization, more complex models, or feature engineering")
+
+    # Data insights
+    print(f"\n📊 Dataset insights:")
+    print(f"   • Total samples: {len(data)}")
+    print(f"   • Features: {len(data.columns) - 1}")  # -1 for target variable
+    print(f"   • Target distribution: {data['quality_binary'].value_counts().to_dict()}")
+
+    print(f"\n🎯 For detailed analysis, refer to the generated visualizations and CSV reports.")
+    print(f"✅ All analyses complete!")
+
+    return results, trained_models, misclassification_analyzer, overfitting_analyzer
 
 
 if __name__ == "__main__":
