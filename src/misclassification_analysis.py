@@ -991,8 +991,11 @@ class MisclassificationAnalyzer:
             print("❌ No analysis data available")
             return None
 
-        # Use consistent file path
-        full_path = os.path.join(self.save_dir, filename)
+        # Ensure results directory exists and use it for file path
+        results_dir = os.path.join(self.save_dir, "results")
+        os.makedirs(results_dir, exist_ok=True)
+        full_path = os.path.join(results_dir, filename)
+
         print(f"💾 Exporting misclassification analysis to {full_path}...")
 
         export_data = []
@@ -1036,7 +1039,7 @@ class MisclassificationAnalyzer:
             feature_analysis = analysis['feature_analysis']
             if feature_analysis:
                 significant_count = sum(1 for data in feature_analysis.values()
-                                      if isinstance(data, dict) and data.get('significant_difference', False))
+                                        if isinstance(data, dict) and data.get('significant_difference', False))
                 row['significant_features_count'] = significant_count
 
                 # Get most impactful feature
