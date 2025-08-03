@@ -1,24 +1,27 @@
+```python
 """
-Enhanced Misclassification Analysis Module
+Enhanced Misclassification Analysis Module with Plot Saving
 
 This module provides deep analysis of misclassified examples to understand model limitations.
 It goes beyond basic metrics to examine the characteristics of misclassified samples.
+All plots are automatically saved to 'evaluation_plots' directory.
 
 Usage:
     from src.misclassification_analysis import MisclassificationAnalyzer
 
     analyzer = MisclassificationAnalyzer()
     analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names)
-    analyzer.create_comprehensive_analysis()
+    analyzer.create_comprehensive_analysis()  # Saves plots automatically
 """
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
 from scipy import stats
 import warnings
+import os
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -32,12 +35,52 @@ class MisclassificationAnalyzer:
     Comprehensive misclassification analysis for understanding model limitations
     """
 
-    def __init__(self):
+    def __init__(self, save_dir="results"):  # Cambia da "evaluation_plots" a "results"
+        """
+        Initialize the misclassification analyzer
+        
+        Args:
+            save_dir (str): Directory to save analysis plots and results
+        """
+        self.save_dir = save_dir
         self.models = {}
         self.misclassified_data = {}
+        
+        # Ensure save directory exists
+        os.makedirs(save_dir, exist_ok=True)
         self.feature_names = None
         self.X_test = None
         self.y_test = None
+        
+
+        # Create save directory if it doesn't exist
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+            print(f"📁 Created directory: {self.save_dir}")
+
+    def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
+        """
+        Save the current figure to the evaluation_plots directory
+
+        Args:
+            filename (str): Name of the file (without extension)
+            dpi (int): Resolution for saving
+            bbox_inches (str): Bounding box setting
+        """
+        if not hasattr(self, '_save_enabled') or not self._save_enabled:
+            return
+
+        # Add timestamp to filename to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"misclassification_{filename}_{timestamp}.png"
+        filepath = os.path.join(self.save_dir, full_filename)
+
+        try:
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
+                       facecolor='white', edgecolor='none')
+            print(f"💾 Saved: {filepath}")
+        except Exception as e:
+            print(f"❌ Error saving {filepath}: {e}")
 
     def add_model_analysis(self, model_key, model, model_name=None):
         """
@@ -319,10 +362,16 @@ class MisclassificationAnalyzer:
             if conf_analysis['low_confidence_misclassified'] > 0:
                 print(f"      Low-confidence misclassifications: {conf_analysis['low_confidence_misclassified']}")
 
-    def plot_feature_importance_misclassification(self, figsize=(16, 10)):
-        """Plot feature importance in misclassification"""
+    def plot_feature_importance_misclassification(self, figsize=(16, 10), save_plots=True):
+        """
+        Plot feature importance in misclassification
 
+        Args:
+            figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
+        """
         print("📊 Creating Feature Misclassification Analysis...")
+        self._save_enabled = save_plots
 
         if not self.misclassified_data:
             print("❌ No misclassification data available")
@@ -500,12 +549,22 @@ class MisclassificationAnalyzer:
 
         plt.tight_layout()
         plt.suptitle('Comprehensive Misclassification Analysis', fontsize=16, fontweight='bold', y=1.02)
+
+        if save_plots:
+            self._save_figure("feature_importance_analysis")
+
         plt.show()
 
-    def plot_misclassified_examples_distribution(self, figsize=(16, 12)):
-        """Plot distribution of misclassified examples in feature space"""
+    def plot_misclassified_examples_distribution(self, figsize=(16, 12), save_plots=True):
+        """
+        Plot distribution of misclassified examples in feature space
 
+        Args:
+            figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
+        """
         print("📊 Creating Misclassified Examples Distribution...")
+        self._save_enabled = save_plots
 
         if not self.misclassified_data or self.X_test is None:
             print("❌ No data available for plotting")
@@ -595,282 +654,99 @@ class MisclassificationAnalyzer:
         plt.tight_layout()
         plt.suptitle(f'Feature Distributions: Correct vs Misclassified\n({self.models[first_model_key]["name"]})',
                      fontsize=16, fontweight='bold', y=1.02)
+
+        if save_plots:
+            self._save_figure("examples_distribution")
+
         plt.show()
 
-    def generate_detailed_report(self):
-        """Generate a detailed text report of findings"""
+    def plot_confidence_analysis(self, figsize=(14, 10), save_plots=True):
+        """
+        Create detailed confidence analysis plots
 
-        print("\n📋 DETAILED MISCLASSIFICATION ANALYSIS REPORT")
-        print("=" * 70)
+        Args:
+            figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
+        """
+        print("📊 Creating Confidence Analysis...")
+        self._save_enabled = save_plots
 
         if not self.misclassified_data:
-            print("❌ No analysis data available")
+            print("❌ No misclassification data available")
             return
 
-        # Overall statistics
-        print("\n🔍 OVERALL FINDINGS:")
-        print("-" * 30)
-
-        total_models = len(self.models)
-        avg_error_rate = np.mean([data['analysis']['misclassification_rate']
-                                  for data in self.misclassified_data.values()])
-
-        print(f"   Models analyzed: {total_models}")
-        print(f"   Average error rate: {avg_error_rate:.1%}")
-        print(f"   Test samples: {len(self.y_test)}")
-
-        # Model-specific findings
-        print(f"\n📊 MODEL-SPECIFIC FINDINGS:")
-        print("-" * 35)
-
+        # Filter models with confidence data
+        models_with_conf = {}
         for model_key, data in self.misclassified_data.items():
-            model_name = self.models[model_key]['name']
-            analysis = data['analysis']
+            if data['analysis']['confidence_analysis'].get('available', False):
+                models_with_conf[model_key] = data
 
-            print(f"\n🔹 {model_name}:")
-            print(f"   Error rate: {analysis['misclassification_rate']:.1%}")
-            print(f"   Error bias: ", end="")
-
-            if analysis['false_positives'] > analysis['false_negatives']:
-                print("Optimistic (more false positives)")
-            elif analysis['false_negatives'] > analysis['false_positives']:
-                print("Pessimistic (more false negatives)")
-            else:
-                print("Balanced")
-
-            # Feature insights
-            feature_analysis = analysis['feature_analysis']
-            significant_features = [
-                name for name, data in feature_analysis.items()
-                if isinstance(data, dict) and data.get('significant_difference', False)
-            ]
-
-            if significant_features:
-                print(f"   Problematic features ({len(significant_features)}): {', '.join(significant_features[:3])}")
-
-                # Find most problematic feature
-                most_problematic = max(
-                    [(name, abs(data.get('mean_difference', 0)))
-                     for name, data in feature_analysis.items()
-                     if isinstance(data, dict) and 'mean_difference' in data],
-                    key=lambda x: x[1], default=(None, 0)
-                )
-
-                if most_problematic[0]:
-                    print(f"   Most problematic: {most_problematic[0]} (diff: {most_problematic[1]:.3f})")
-
-            # Confidence insights
-            conf_analysis = analysis['confidence_analysis']
-            if conf_analysis.get('available', False):
-                conf_diff = conf_analysis['confidence_difference']
-                print(f"   Confidence gap: {conf_diff:.3f} (correct vs misclassified)")
-
-                if conf_diff > 0.1:
-                    print("   → Model shows good confidence calibration")
-                elif conf_diff < 0.05:
-                    print("   → Model may be overconfident in wrong predictions")
-
-        # Common patterns across models
-        print(f"\n🎯 COMMON PATTERNS ACROSS MODELS:")
-        print("-" * 40)
-
-        # Find features that are problematic across multiple models
-        feature_problem_count = {}
-        for model_key, data in self.misclassified_data.items():
-            feature_analysis = data['analysis']['feature_analysis']
-            for feature_name, analysis in feature_analysis.items():
-                if isinstance(analysis, dict) and analysis.get('significant_difference', False):
-                    feature_problem_count[feature_name] = feature_problem_count.get(feature_name, 0) + 1
-
-        common_problems = [(feature, count) for feature, count in feature_problem_count.items()
-                           if count > 1]
-        common_problems.sort(key=lambda x: x[1], reverse=True)
-
-        if common_problems:
-            print("   Features causing issues across multiple models:")
-            for feature, count in common_problems[:5]:
-                print(f"   • {feature}: {count}/{total_models} models")
-        else:
-            print("   No features consistently problematic across models")
-
-        # Error type patterns
-        fp_dominant = sum(1 for data in self.misclassified_data.values()
-                          if data['analysis']['false_positives'] > data['analysis']['false_negatives'])
-        fn_dominant = sum(1 for data in self.misclassified_data.values()
-                          if data['analysis']['false_negatives'] > data['analysis']['false_positives'])
-
-        print(f"\n   Error type patterns:")
-        print(f"   • Models with FP bias: {fp_dominant}/{total_models}")
-        print(f"   • Models with FN bias: {fn_dominant}/{total_models}")
-        print(f"   • Balanced models: {total_models - fp_dominant - fn_dominant}/{total_models}")
-
-        # Recommendations
-        print(f"\n💡 RECOMMENDATIONS:")
-        print("-" * 20)
-
-        print("   Based on the analysis:")
-
-        if common_problems:
-            print(f"   1. Focus on feature engineering for: {common_problems[0][0]}")
-            print("      → Consider transformations, outlier removal, or feature combinations")
-
-        if avg_error_rate > 0.15:
-            print("   2. Consider ensemble methods to reduce overall error rate")
-
-        avg_confidence_available = any(data['analysis']['confidence_analysis'].get('available', False)
-                                       for data in self.misclassified_data.values())
-
-        if avg_confidence_available:
-            low_conf_models = [
-                model_key for model_key, data in self.misclassified_data.items()
-                if (data['analysis']['confidence_analysis'].get('available', False) and
-                    data['analysis']['confidence_analysis']['confidence_difference'] < 0.05)
-            ]
-
-            if low_conf_models:
-                print("   3. Improve confidence calibration for better uncertainty estimation")
-
-        if fp_dominant > fn_dominant:
-            print("   4. Most models are optimistic - consider adjusting decision thresholds")
-        elif fn_dominant > fp_dominant:
-            print("   4. Most models are pessimistic - consider cost-sensitive learning")
-
-        print("   5. Collect more data for misclassified example patterns")
-        print("   6. Consider domain expert review of consistently misclassified cases")
-
-        print(f"\n✅ Analysis complete! Use the visualizations for deeper insights.")
-
-    def create_comprehensive_analysis(self, figsize_1=(16, 10), figsize_2=(16, 12)):
-        """Create all analysis visualizations and reports"""
-
-        print("\n🎨 CREATING COMPREHENSIVE MISCLASSIFICATION ANALYSIS")
-        print("=" * 65)
-
-        if not self.misclassified_data:
-            print("❌ No analysis data available. Run analyze_all_models() first.")
+        if not models_with_conf:
+            print("❌ No confidence data available")
             return
 
-        # Generate visualizations
-        self.plot_feature_importance_misclassification(figsize_1)
-        self.plot_misclassified_examples_distribution(figsize_2)
+        fig, axes = plt.subplots(2, 2, figsize=figsize)
 
-        # Generate detailed report
-        self.generate_detailed_report()
+        # 1. Confidence distributions
+        ax1 = axes[0, 0]
+        first_model = list(models_with_conf.keys())[0]
+        probabilities = models_with_conf[first_model]['probabilities']
+        misclassified_indices = models_with_conf[first_model]['misclassified_indices']
 
-        print(f"\n🎉 Comprehensive misclassification analysis complete!")
+        correctly_classified = np.setdiff1d(np.arange(len(self.y_test)), misclassified_indices)
 
-    def export_analysis_results(self, filename="misclassification_analysis.csv"):
-        """Export analysis results to CSV for further analysis"""
+        # Plot probability distributions
+        ax1.hist(probabilities[correctly_classified], alpha=0.6, bins=30, label='Correct',
+                color='lightgreen', density=True)
+        ax1.hist(probabilities[misclassified_indices], alpha=0.8, bins=20, label='Misclassified',
+                color='red', density=True)
 
-        if not self.misclassified_data:
-            print("❌ No analysis data available")
-            return None
+        # Add decision boundary
+        ax1.axvline(0.5, color='black', linestyle='--', alpha=0.7, label='Decision Boundary')
 
-        print(f"💾 Exporting analysis results to {filename}...")
+        ax1.set_xlabel('Prediction Probability')
+        ax1.set_ylabel('Density')
+        ax1.set_title(f'Prediction Probability Distribution\n({self.models[first_model]["name"]})',
+                     fontweight='bold')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
 
-        # Prepare data for export
-        export_data = []
+        # 2. Confidence vs Accuracy scatter
+        ax2 = axes[0, 1]
 
-        for model_key, data in self.misclassified_data.items():
-            model_name = self.models[model_key]['name']
-            analysis = data['analysis']
+        # Create confidence bins and calculate accuracy for each
+        conf_bins = np.linspace(0, 0.5, 11)  # Confidence is distance from 0.5
+        bin_accuracies = []
+        bin_centers = []
+        bin_counts = []
 
-            # Basic metrics
-            base_row = {
-                'model': model_name,
-                'model_key': model_key,
-                'total_misclassified': analysis['total_misclassified'],
-                'misclassification_rate': analysis['misclassification_rate'],
-                'false_positives': analysis['false_positives'],
-                'false_negatives': analysis['false_negatives'],
-                'fp_rate': analysis['fp_rate'],
-                'fn_rate': analysis['fn_rate']
-            }
+        for i in range(len(conf_bins) - 1):
+            conf_lower = conf_bins[i]
+            conf_upper = conf_bins[i + 1]
 
-            # Confidence metrics
-            conf_analysis = analysis['confidence_analysis']
-            if conf_analysis.get('available', False):
-                base_row.update({
-                    'correct_avg_confidence': conf_analysis['correct_avg_confidence'],
-                    'misclassified_avg_confidence': conf_analysis['misclassified_avg_confidence'],
-                    'confidence_difference': conf_analysis['confidence_difference'],
-                    'low_confidence_misclassified': conf_analysis['low_confidence_misclassified']
-                })
+            # Find samples in this confidence range
+            confidence_all = np.abs(probabilities - 0.5)
+            in_bin = (confidence_all >= conf_lower) & (confidence_all < conf_upper)
 
-            # Feature analysis
-            feature_analysis = analysis['feature_analysis']
-            significant_features = [
-                name for name, data in feature_analysis.items()
-                if isinstance(data, dict) and data.get('significant_difference', False)
-            ]
+            if np.sum(in_bin) > 0:
+                predictions = (probabilities[in_bin] >= 0.5).astype(int)
+                accuracy = np.mean(predictions == self.y_test[in_bin])
 
-            base_row['significant_features_count'] = len(significant_features)
-            base_row['significant_features'] = '; '.join(significant_features)
+                bin_accuracies.append(accuracy)
+                bin_centers.append((conf_lower + conf_upper) / 2)
+                bin_counts.append(np.sum(in_bin))
 
-            export_data.append(base_row)
+        if bin_centers:
+            # Size points by number of samples
+            sizes = [max(20, min(200, count * 5)) for count in bin_counts]
+            scatter = ax2.scatter(bin_centers, bin_accuracies, s=sizes, alpha=0.7, c=bin_counts,
+                                cmap='viridis')
 
-        # Create DataFrame and save
-        df = pd.DataFrame(export_data)
-        df.to_csv(filename, index=False)
+            # Add trend line
+            if len(bin_centers) > 1:
+                z = np.polyfit(bin_centers, bin_accuracies, 1)
+                p = np.poly1d(z)
+                ax2.plot(bin_centers, p(bin_centers), "r--", alpha=0.8, label='Trend')
 
-        print(f"✅ Analysis results exported to {filename}")
-        print(f"   Columns: {list(df.columns)}")
-        print(f"   Rows: {len(df)}")
-
-        return df
-
-
-# Integration functions for your existing project
-def integrate_with_existing_models(models_dict, X_test, y_test, feature_names=None):
-    """
-    Integration function for your existing project structure
-
-    Args:
-        models_dict (dict): Dictionary of trained models {model_key: model_object}
-        X_test: Test features
-        y_test: Test labels
-        feature_names (list): Names of features (optional)
-
-    Returns:
-        MisclassificationAnalyzer: Analyzer with complete analysis
-    """
-
-    print("🔗 INTEGRATING MISCLASSIFICATION ANALYSIS WITH EXISTING MODELS")
-    print("=" * 70)
-
-    # Define model display names
-    model_names = {
-        'lr_custom': 'Logistic Regression (Custom)',
-        'svm_custom': 'Linear SVM (Custom)',
-        'klr_custom': 'Kernel Logistic Regression (Custom)',
-        'ksvm_custom': 'Kernel SVM (Custom)'
-    }
-
-    # Generate feature names if not provided
-    if feature_names is None:
-        # Standard wine dataset features
-        feature_names = [
-            'fixed_acidity', 'volatile_acidity', 'citric_acid', 'residual_sugar',
-            'chlorides', 'free_sulfur_dioxide', 'total_sulfur_dioxide', 'density',
-            'pH', 'sulphates', 'alcohol', 'wine_type'
-        ]
-
-        # Adjust to actual number of features
-        if hasattr(X_test, 'shape'):
-            n_features = X_test.shape[1] if len(X_test.shape) > 1 else len(X_test)
-            if len(feature_names) != n_features:
-                feature_names = [f'Feature_{i}' for i in range(n_features)]
-
-    # Create analyzer
-    analyzer = MisclassificationAnalyzer()
-
-    # Run analysis
-    analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names, model_names)
-
-    # Create comprehensive analysis
-    analyzer.create_comprehensive_analysis()
-
-    # Export results
-    analyzer.export_analysis_results("results/wine_misclassification_analysis.csv")
-
-    return analyzer
+            ax2.set_xlabel('Confidence (Distance from 0.5)')
+            ax2.set_ylabel('Accuracy')
