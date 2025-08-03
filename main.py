@@ -1,11 +1,7 @@
 import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from models.model_training import train_all_models, print_model_results
-from src.analysis_functions import (
-    run_comprehensive_analysis,
-    generate_final_summary_report,
-    print_completion_message
-)
+from src.analysis_functions import run_comprehensive_analysis, generate_final_summary_report
 
 
 def run_experiment(data, experiment_name=""):
@@ -52,13 +48,10 @@ def main():
     # Run experiment
     results, trained_models, misclassification_analyzer, overfitting_analyzer = run_experiment(
         data,
-        experiment_name="🍷 Wine Classification"
+        experiment_name="Wine Classification"
     )
 
-    # Print completion message
-    print_completion_message()
-
-    # Generate final comprehensive report
+    # Generate the final comprehensive report
     generate_final_summary_report(results, overfitting_analyzer, data)
 
     return results, trained_models, misclassification_analyzer, overfitting_analyzer
