@@ -1,5 +1,5 @@
 """
-Model Performance Visualization Module
+Model Performance Visualization Module with Plot Saving
 
 This module provides comprehensive visualization functions for machine learning model evaluation.
 Can be easily integrated with existing modularized ML projects.
@@ -11,7 +11,7 @@ Usage:
     visualizer = ModelVisualizer()
     visualizer.add_model_results('lr_custom', lr_model, lr_results)
     visualizer.add_model_results('svm_custom', svm_model, svm_results)
-    visualizer.create_all_plots(X_test, y_test)
+    visualizer.create_all_plots(X_test, y_test, save_plots=True)
 """
 
 import matplotlib.pyplot as plt
@@ -23,6 +23,8 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score
 )
 import warnings
+import os
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -39,11 +41,22 @@ class ModelVisualizer:
     for model comparison and performance analysis.
     """
 
-    def __init__(self):
-        """Initialize the visualizer"""
+    def __init__(self, save_dir='evaluation_plots'):
+        """
+        Initialize the visualizer
+
+        Args:
+            save_dir (str): Directory to save plots (default: 'evaluation_plots')
+        """
         self.models = {}
         self.results = {}
         self.model_names = {}
+        self.save_dir = save_dir
+
+        # Create save directory if it doesn't exist
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+            print(f"📁 Created directory: {self.save_dir}")
 
     def add_model_results(self, model_key, trained_model, evaluation_results, model_name=None):
         """
@@ -64,14 +77,40 @@ class ModelVisualizer:
 
         self.model_names[model_key] = model_name
 
-    def plot_training_curves(self, figsize=(15, 10)):
+    def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
+        """
+        Save the current figure to the evaluation_plots directory
+
+        Args:
+            filename (str): Name of the file (without extension)
+            dpi (int): Resolution for saving
+            bbox_inches (str): Bounding box setting
+        """
+        if not hasattr(self, '_save_enabled') or not self._save_enabled:
+            return
+
+        # Add timestamp to filename to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"{filename}_{timestamp}.png"
+        filepath = os.path.join(self.save_dir, full_filename)
+
+        try:
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
+                       facecolor='white', edgecolor='none')
+            print(f"💾 Saved: {filepath}")
+        except Exception as e:
+            print(f"❌ Error saving {filepath}: {e}")
+
+    def plot_training_curves(self, figsize=(15, 10), save_plots=False):
         """
         Plot training loss curves for models that support it
 
         Args:
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("📈 Creating Training Loss Curves...")
+        self._save_enabled = save_plots
 
         # Find models with training history
         models_with_history = {}
@@ -82,6 +121,8 @@ class ModelVisualizer:
         if not models_with_history:
             print("⚠️ No models with training history found. Creating synthetic curves...")
             self._plot_synthetic_training_curves(figsize)
+            if save_plots:
+                self._save_figure("training_curves_synthetic")
             return
 
         n_models = len(models_with_history)
@@ -137,6 +178,10 @@ class ModelVisualizer:
 
         plt.tight_layout()
         plt.suptitle('Training Loss Curves', fontsize=16, fontweight='bold', y=1.02)
+
+        if save_plots:
+            self._save_figure("training_curves")
+
         plt.show()
 
     def _plot_synthetic_training_curves(self, figsize):
@@ -197,14 +242,16 @@ class ModelVisualizer:
         plt.suptitle('Training Progress (Synthetic)', fontsize=16, fontweight='bold', y=1.02)
         plt.show()
 
-    def plot_metrics_comparison(self, figsize=(16, 12)):
+    def plot_metrics_comparison(self, figsize=(16, 12), save_plots=False):
         """
         Create comprehensive metrics comparison plots
 
         Args:
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("📊 Creating Metrics Comparison...")
+        self._save_enabled = save_plots
 
         fig = plt.figure(figsize=figsize)
 
@@ -340,9 +387,14 @@ class ModelVisualizer:
         cbar.set_label('Score', rotation=270, labelpad=15)
 
         plt.suptitle('Comprehensive Model Performance Analysis', fontsize=16, fontweight='bold')
+
+        if save_plots:
+            self._save_figure("metrics_comparison")
+
+        plt.tight_layout()
         plt.show()
 
-    def plot_confusion_matrices(self, X_test, y_test, figsize=(16, 12)):
+    def plot_confusion_matrices(self, X_test, y_test, figsize=(16, 12), save_plots=False):
         """
         Plot confusion matrices for all models
 
@@ -350,8 +402,10 @@ class ModelVisualizer:
             X_test: Test features
             y_test: Test labels
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("🔍 Creating Confusion Matrices...")
+        self._save_enabled = save_plots
 
         n_models = len(self.models)
         cols = min(n_models, 3)
@@ -405,9 +459,13 @@ class ModelVisualizer:
 
         plt.tight_layout()
         plt.suptitle('Confusion Matrices with Percentages', fontsize=16, fontweight='bold', y=1.02)
+
+        if save_plots:
+            self._save_figure("confusion_matrices")
+
         plt.show()
 
-    def plot_roc_curves(self, X_test, y_test, figsize=(12, 8)):
+    def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
         """
         Plot ROC curves for all models
 
@@ -415,8 +473,10 @@ class ModelVisualizer:
             X_test: Test features
             y_test: Test labels
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("📈 Creating ROC Curves...")
+        self._save_enabled = save_plots
 
         plt.figure(figsize=figsize)
 
@@ -480,12 +540,15 @@ class ModelVisualizer:
                      bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8),
                      fontsize=10, fontweight='bold')
 
+        if save_plots:
+            self._save_figure("roc_curves")
+
         plt.tight_layout()
         plt.show()
 
         return roc_data
 
-    def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8)):
+    def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
         """
         Plot Precision-Recall curves for all models
 
@@ -493,8 +556,10 @@ class ModelVisualizer:
             X_test: Test features
             y_test: Test labels
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("📈 Creating Precision-Recall Curves...")
+        self._save_enabled = save_plots
 
         plt.figure(figsize=figsize)
 
@@ -557,19 +622,24 @@ class ModelVisualizer:
                      bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
                      fontsize=10, fontweight='bold')
 
+        if save_plots:
+            self._save_figure("precision_recall_curves")
+
         plt.tight_layout()
         plt.show()
 
         return pr_data
 
-    def plot_model_comparison_radar(self, figsize=(10, 10)):
+    def plot_model_comparison_radar(self, figsize=(10, 10), save_plots=False):
         """
         Create radar chart comparing all models across all metrics
 
         Args:
             figsize (tuple): Figure size for the plot
+            save_plots (bool): Whether to save the plot
         """
         print("🎯 Creating Radar Chart...")
+        self._save_enabled = save_plots
 
         # Prepare data
         metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1']
@@ -606,64 +676,71 @@ class ModelVisualizer:
         plt.title('Model Performance Comparison\n(All Metrics)',
                   fontsize=16, fontweight='bold', pad=30)
         plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0), fontsize=11)
+
+        if save_plots:
+            self._save_figure("radar_chart")
+
         plt.tight_layout()
         plt.show()
 
-    def create_all_plots(self, X_test, y_test, save_plots=False, save_dir='plots'):
+    def create_all_plots(self, X_test, y_test, save_plots=True, save_dir=None):
         """
         Generate all visualization plots in sequence
 
         Args:
             X_test: Test features
             y_test: Test labels
-            save_plots (bool): Whether to save plots to files
-            save_dir (str): Directory to save plots
+            save_plots (bool): Whether to save plots to files (default: True)
+            save_dir (str): Directory to save plots (overrides default if provided)
         """
         print("\n🎨 GENERATING COMPREHENSIVE MODEL VISUALIZATIONS")
         print("=" * 60)
 
+        # Update save directory if provided
+        if save_dir:
+            self.save_dir = save_dir
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)
+                print(f"📁 Created directory: {self.save_dir}")
+
         if save_plots:
-            import os
-            os.makedirs(save_dir, exist_ok=True)
-            # Set up matplotlib to save figures
-            original_backend = plt.get_backend()
+            print(f"💾 Plots will be saved to: {os.path.abspath(self.save_dir)}")
 
         try:
             # 1. Training curves
             print("\n1. Training Loss Curves")
-            self.plot_training_curves()
+            self.plot_training_curves(save_plots=save_plots)
 
             # 2. Metrics comparison
             print("\n2. Performance Metrics Comparison")
-            self.plot_metrics_comparison()
+            self.plot_metrics_comparison(save_plots=save_plots)
 
             # 3. Confusion matrices
             print("\n3. Confusion Matrices")
-            self.plot_confusion_matrices(X_test, y_test)
+            self.plot_confusion_matrices(X_test, y_test, save_plots=save_plots)
 
             # 4. ROC curves
             print("\n4. ROC Curves")
-            roc_data = self.plot_roc_curves(X_test, y_test)
+            roc_data = self.plot_roc_curves(X_test, y_test, save_plots=save_plots)
 
             # 5. Precision-Recall curves
             print("\n5. Precision-Recall Curves")
-            pr_data = self.plot_precision_recall_curves(X_test, y_test)
+            pr_data = self.plot_precision_recall_curves(X_test, y_test, save_plots=save_plots)
 
             # 6. Radar chart
             print("\n6. Model Comparison Radar Chart")
-            self.plot_model_comparison_radar()
+            self.plot_model_comparison_radar(save_plots=save_plots)
 
             print("\n✅ All visualizations generated successfully!")
+
+            if save_plots:
+                print(f"📁 All plots saved in: {os.path.abspath(self.save_dir)}")
 
             # Generate summary report
             self._generate_summary_report(roc_data, pr_data)
 
         except Exception as e:
             print(f"❌ Error generating visualizations: {e}")
-
-        finally:
-            if save_plots:
-                plt.rcParams.update(plt.rcParamsDefault)
 
     def _generate_summary_report(self, roc_data, pr_data):
         """Generate a text summary of model performance"""
@@ -703,11 +780,70 @@ class ModelVisualizer:
         for i, (model_name, score) in enumerate(overall_scores, 1):
             print(f"   {i}. {model_name}: {score:.4f}")
 
+        # Save summary to file if save_plots is enabled
+        if hasattr(self, '_save_enabled') and self._save_enabled:
+            self._save_summary_report(roc_data, pr_data, overall_scores)
+
         print(f"\n✅ Summary report complete!")
+
+    def _save_summary_report(self, roc_data, pr_data, overall_scores):
+        """Save the summary report to a text file"""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            report_path = os.path.join(self.save_dir, f"summary_report_{timestamp}.txt")
+
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write("MODEL PERFORMANCE SUMMARY REPORT\n")
+                f.write("=" * 50 + "\n\n")
+                f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Models evaluated: {len(self.models)}\n")
+                f.write(f"Model names: {', '.join(self.model_names.values())}\n\n")
+
+                # Best performers
+                best_accuracy = max(self.results.items(), key=lambda x: x[1]['accuracy'])
+                best_f1 = max(self.results.items(), key=lambda x: x[1]['f1'])
+                best_precision = max(self.results.items(), key=lambda x: x[1]['precision'])
+                best_recall = max(self.results.items(), key=lambda x: x[1]['recall'])
+
+                f.write("BEST PERFORMERS:\n")
+                f.write(f"   Accuracy: {self.model_names[best_accuracy[0]]} ({best_accuracy[1]['accuracy']:.4f})\n")
+                f.write(f"   F1-Score: {self.model_names[best_f1[0]]} ({best_f1[1]['f1']:.4f})\n")
+                f.write(f"   Precision: {self.model_names[best_precision[0]]} ({best_precision[1]['precision']:.4f})\n")
+                f.write(f"   Recall: {self.model_names[best_recall[0]]} ({best_recall[1]['recall']:.4f})\n")
+
+                if roc_data:
+                    best_roc = max(roc_data, key=lambda x: x['auc'])
+                    f.write(f"   ROC-AUC: {best_roc['model']} ({best_roc['auc']:.4f})\n")
+
+                if pr_data:
+                    best_pr = max(pr_data, key=lambda x: x['auc'])
+                    f.write(f"   PR-AUC: {best_pr['model']} ({best_pr['auc']:.4f})\n")
+
+                # Overall ranking
+                f.write(f"\nOVERALL RANKING (by average score):\n")
+                for i, (model_name, score) in enumerate(overall_scores, 1):
+                    f.write(f"   {i}. {model_name}: {score:.4f}\n")
+
+                # Detailed metrics
+                f.write(f"\nDETAILED METRICS:\n")
+                f.write("-" * 30 + "\n")
+                for model_key, results in self.results.items():
+                    model_name = self.model_names[model_key]
+                    f.write(f"\n{model_name}:\n")
+                    f.write(f"   Accuracy: {results['accuracy']:.4f}\n")
+                    f.write(f"   Balanced Accuracy: {results['balanced_accuracy']:.4f}\n")
+                    f.write(f"   Precision: {results['precision']:.4f}\n")
+                    f.write(f"   Recall: {results['recall']:.4f}\n")
+                    f.write(f"   F1-Score: {results['f1']:.4f}\n")
+
+            print(f"📄 Summary report saved: {report_path}")
+
+        except Exception as e:
+            print(f"⚠️ Could not save summary report: {e}")
 
 
 # Convenience functions for easy integration
-def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None):
+def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True, save_dir='evaluation_plots'):
     """
     Convenience function to create all visualizations with minimal setup
 
@@ -717,11 +853,13 @@ def create_model_visualizations(models_dict, results_dict, X_test, y_test, model
         X_test: Test features
         y_test: Test labels
         model_names (dict): Optional custom model names {model_key: display_name}
+        save_plots (bool): Whether to save plots (default: True)
+        save_dir (str): Directory to save plots (default: 'evaluation_plots')
 
     Returns:
         ModelVisualizer: The visualizer object for further customization
     """
-    visualizer = ModelVisualizer()
+    visualizer = ModelVisualizer(save_dir=save_dir)
 
     for model_key in models_dict.keys():
         if model_key in results_dict:
@@ -737,12 +875,12 @@ def create_model_visualizations(models_dict, results_dict, X_test, y_test, model
             )
 
     # Generate all plots
-    visualizer.create_all_plots(X_test, y_test)
+    visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
 
     return visualizer
 
 
-def quick_model_comparison(model_results, X_test, y_test):
+def quick_model_comparison(model_results, X_test, y_test, save_plots=True, save_dir='evaluation_plots'):
     """
     Quick comparison function that works with just results (no model objects needed)
 
@@ -750,6 +888,8 @@ def quick_model_comparison(model_results, X_test, y_test):
         model_results (dict): Dictionary of evaluation results
         X_test: Test features (for generating synthetic predictions)
         y_test: Test labels
+        save_plots (bool): Whether to save plots (default: True)
+        save_dir (str): Directory to save plots (default: 'evaluation_plots')
     """
     print("🚀 Quick Model Comparison (Results Only)")
     print("=" * 50)
@@ -799,7 +939,7 @@ def quick_model_comparison(model_results, X_test, y_test):
             return np.clip(probabilities, 0, 1)
 
     # Create visualizer and add synthetic models
-    visualizer = ModelVisualizer()
+    visualizer = ModelVisualizer(save_dir=save_dir)
 
     name_mapping = {
         'lr_custom': 'Logistic Regression',
@@ -816,13 +956,13 @@ def quick_model_comparison(model_results, X_test, y_test):
             visualizer.add_model_results(model_key, synthetic_model, results, model_name)
 
     # Generate visualizations
-    visualizer.create_all_plots(X_test, y_test)
+    visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
 
     return visualizer
 
 
 # Integration functions for your existing project structure
-def integrate_with_experiment_results(experiment_results, X_test, y_test):
+def integrate_with_experiment_results(experiment_results, X_test, y_test, save_plots=True, save_dir='evaluation_plots'):
     """
     Integration function specifically designed for your project structure
 
@@ -832,6 +972,8 @@ def integrate_with_experiment_results(experiment_results, X_test, y_test):
         experiment_results (dict): Results from your run_experiment function
         X_test: Test features
         y_test: Test labels
+        save_plots (bool): Whether to save plots (default: True)
+        save_dir (str): Directory to save plots (default: 'evaluation_plots')
     """
     print("\n🎨 CREATING VISUALIZATIONS FROM EXPERIMENT RESULTS")
     print("=" * 60)
@@ -847,63 +989,7 @@ def integrate_with_experiment_results(experiment_results, X_test, y_test):
         return None
 
     # Use quick comparison for results-only visualization
-    visualizer = quick_model_comparison(valid_results, X_test, y_test)
+    visualizer = quick_model_comparison(valid_results, X_test, y_test, save_plots=save_plots, save_dir=save_dir)
 
     return visualizer
 
-
-# Example usage functions
-def example_usage_with_trained_models():
-    """
-    Example of how to use the visualizer when you have trained model objects
-    """
-    print("""
-    📝 EXAMPLE USAGE WITH TRAINED MODELS:
-
-    # After training your models in main.py
-    from src.visualization import ModelVisualizer
-
-    # Create visualizer
-    visualizer = ModelVisualizer()
-
-    # Add each model and its results
-    visualizer.add_model_results('lr_custom', lr_model, lr_results, 'Logistic Regression')
-    visualizer.add_model_results('svm_custom', svm_model, svm_results, 'Linear SVM')
-    visualizer.add_model_results('klr_custom', klr_model, klr_results, 'Kernel Logistic Regression')
-    visualizer.add_model_results('ksvm_custom', ksvm_model, ksvm_results, 'Kernel SVM')
-
-    # Generate all visualizations
-    visualizer.create_all_plots(X_test, y_test)
-    """)
-
-
-def example_usage_with_results_only():
-    """
-    Example of how to use the visualizer with just results (no model objects)
-    """
-    print("""
-    📝 EXAMPLE USAGE WITH RESULTS ONLY:
-
-    # After your experiment in main.py
-    from src.visualization import integrate_with_experiment_results
-
-    # results is the return value from your run_experiment function
-    # X_test, y_test are your test data
-    visualizer = integrate_with_experiment_results(results, X_test, y_test)
-    """)
-
-
-# Main module information
-if __name__ == "__main__":
-    print("🎨 Model Performance Visualization Module")
-    print("=" * 50)
-    print("This module provides comprehensive visualization tools for ML model evaluation.")
-    print("\n📋 Available Functions:")
-    print("- ModelVisualizer: Main class for creating visualizations")
-    print("- create_model_visualizations: Convenience function for quick setup")
-    print("- quick_model_comparison: Works with results only (no model objects needed)")
-    print("- integrate_with_experiment_results: Integration with your existing project")
-    print("\n💡 Usage Examples:")
-    example_usage_with_trained_models()
-    example_usage_with_results_only()
-    print("\n🚀 Ready to visualize your model performance!")
