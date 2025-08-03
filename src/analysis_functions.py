@@ -1,8 +1,3 @@
-"""
-Analysis and Reporting Functions
-Handles all post-training analysis, visualization, and reporting
-"""
-
 from src.visualization import integrate_with_experiment_results
 from src.misclassification_analysis import MisclassificationAnalyzer
 from src.overfitting_analysis import integrate_overfitting_analysis
@@ -179,14 +174,3 @@ def generate_data_insights(data):
     print(f"   • Total samples: {len(data)}")
     print(f"   • Features: {len(data.columns) - 1}")  # -1 for target variable
     print(f"   • Target distribution: {data['quality_binary'].value_counts().to_dict()}")
-
-
-def print_completion_message():
-    """Print final completion message"""
-    print(f"\n{'=' * 80}")
-    print("🎉 COMPREHENSIVE ANALYSIS COMPLETE!")
-    print("📊 Check the visualizations and reports above for detailed insights.")
-    print("💾 Analysis results saved to:")
-    print("   • wine_misclassification_analysis.csv")
-    print("   • overfitting_analysis.csv")
-    print(f"{'=' * 80}")
