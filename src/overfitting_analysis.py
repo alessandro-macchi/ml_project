@@ -1167,35 +1167,6 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
     return analyzer
 
 
-# Example usage
-def example_usage():
-    """Show example usage of the overfitting analyzer"""
-    print("""
-    📝 EXAMPLE USAGE:
-
-    # Integration with your existing project
-    from src.overfitting_analysis import integrate_overfitting_analysis
-
-    # After training your models in main.py
-    models_dict = {
-        'lr_custom': lr_model,
-        'svm_custom': svm_model,
-        'klr_custom': klr_model, 
-        'ksvm_custom': ksvm_model
-    }
-
-    # Run overfitting analysis
-    analyzer = integrate_overfitting_analysis(
-        models_dict, X_train, y_train, X_test, y_test
-    )
-
-    # Manual usage
-    analyzer = OverfittingAnalyzer()
-    analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test)
-    analyzer.create_comprehensive_analysis()
-    """)
-
-
 # Main execution
 if __name__ == "__main__":
     print("🔍 Overfitting/Underfitting Analysis Module")
