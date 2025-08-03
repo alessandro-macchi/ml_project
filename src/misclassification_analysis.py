@@ -931,39 +931,6 @@ def quick_misclassification_analysis(experiment_results, X_test, y_test, feature
     return integrate_with_existing_models(synthetic_models, X_test, y_test, feature_names)
 
 
-# Example usage functions
-def example_usage():
-    """Show example usage of the misclassification analyzer"""
-
-    print("""
-    📝 EXAMPLE USAGE:
-
-    # Method 1: With trained model objects
-    from src.misclassification_analysis import integrate_with_existing_models
-
-    # After training your models in main.py
-    models_dict = {
-        'lr_custom': lr_model,
-        'svm_custom': svm_model, 
-        'klr_custom': klr_model,
-        'ksvm_custom': ksvm_model
-    }
-
-    analyzer = integrate_with_existing_models(models_dict, X_test, y_test)
-
-    # Method 2: With experiment results only
-    from src.misclassification_analysis import quick_misclassification_analysis
-
-    # results is the return value from your run_experiment function
-    analyzer = quick_misclassification_analysis(results, X_test, y_test)
-
-    # Method 3: Manual setup
-    analyzer = MisclassificationAnalyzer()
-    analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names)
-    analyzer.create_comprehensive_analysis()
-    """)
-
-
 # Main execution
 if __name__ == "__main__":
     print("🔍 Enhanced Misclassification Analysis Module")
