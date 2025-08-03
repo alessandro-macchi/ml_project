@@ -24,6 +24,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\evaluation_plots\results\misclassification_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\evaluation_plots\results\wine_misclassification_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\evaluation_plots\wine_misclassification_analysis.csv">
           <value>
             <Attribute>

@@ -992,7 +992,7 @@ class MisclassificationAnalyzer:
             return None
 
         # Ensure results directory exists and use it for file path
-        results_dir = os.path.join(self.save_dir, "results")
+        results_dir = os.path.join(self.save_dir, "../results")
         os.makedirs(results_dir, exist_ok=True)
         full_path = os.path.join(results_dir, filename)
 
@@ -1094,9 +1094,6 @@ class MisclassificationAnalyzer:
 
         # Generate detailed report
         self.generate_detailed_report()
-
-        # Export results to the same directory as plots
-        self.export_analysis_results("misclassification_analysis.csv")
 
         if save_plots:
             print(f"\n💾 All plots saved to: {final_save_dir}/")
