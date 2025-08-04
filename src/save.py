@@ -3,7 +3,7 @@ import json
 import pickle
 from datetime import datetime
 
-def save_results(results, experiment_name, results_dir="results"):
+def save_results(results, experiment_name, results_dir="output/results"):
     """Save experiment results to files"""
     os.makedirs(results_dir, exist_ok=True)
 

@@ -1,9 +1,15 @@
 """
-Overfitting and Underfitting Analysis Module
+Overfitting and Underfitting Analysis Module - FIXED VERSION
 
 This module provides comprehensive analysis to detect and visualize overfitting and underfitting
 in machine learning models. It analyzes training vs validation performance, learning curves,
 and provides recommendations for model improvement.
+
+FIXES:
+- Proper directory creation and path handling
+- Fixed saving mechanism to ensure plots are saved before showing
+- Added verbose logging for debugging save operations
+- Improved error handling for file operations
 
 Usage:
     from src.overfitting_analysis import OverfittingAnalyzer
@@ -528,8 +534,45 @@ class OverfittingAnalyzer:
             for indicator in diagnosis['indicators'][:3]:  # Show top 3
                 print(f"         • {indicator}")
 
+    def _ensure_directory_exists(self, directory_path):
+        """Ensure directory exists and log the operation"""
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+            print(f"   📁 Directory ensured: {os.path.abspath(directory_path)}")
+            return True
+        except Exception as e:
+            print(f"   ❌ Error creating directory {directory_path}: {e}")
+            return False
+
+    def _save_plot_safely(self, figure, filepath, dpi=300):
+        """Save plot with proper error handling and logging"""
+        try:
+            # Ensure the directory exists
+            directory = os.path.dirname(filepath)
+            if not self._ensure_directory_exists(directory):
+                return False
+
+            # Get absolute path for logging
+            abs_filepath = os.path.abspath(filepath)
+
+            # Save the figure
+            figure.savefig(filepath, dpi=dpi, bbox_inches='tight', facecolor='white')
+
+            # Verify file was created
+            if os.path.exists(filepath):
+                file_size = os.path.getsize(filepath)
+                print(f"   ✅ Plot saved successfully: {abs_filepath} ({file_size} bytes)")
+                return True
+            else:
+                print(f"   ❌ Plot file was not created: {abs_filepath}")
+                return False
+
+        except Exception as e:
+            print(f"   ❌ Error saving plot to {filepath}: {e}")
+            return False
+
     def plot_fitting_analysis(self, figsize=(20, 15), save_plots=False, save_dir='output/evaluation_plots'):
-        """Create comprehensive fitting analysis visualizations"""
+        """Create comprehensive fitting analysis visualizations with fixed saving"""
 
         print("📊 Creating Overfitting/Underfitting Analysis Plots...")
 
@@ -537,9 +580,11 @@ class OverfittingAnalyzer:
             print("❌ No analysis data available")
             return
 
-        # Create save directory if needed
+        # Create save directory if needed and log it
         if save_plots:
-            os.makedirs(save_dir, exist_ok=True)
+            if not self._ensure_directory_exists(save_dir):
+                print("❌ Failed to create save directory, disabling save_plots")
+                save_plots = False
 
         n_models = len(self.analysis_results)
 
@@ -768,21 +813,25 @@ class OverfittingAnalyzer:
                      fontsize=16, fontweight='bold', y=0.98)
         plt.tight_layout()
 
-        # Save plot if requested
+        # Save plot BEFORE showing it if requested
         if save_plots:
             filename = os.path.join(save_dir, 'overfitting_analysis_comprehensive.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
+            if self._save_plot_safely(fig, filename):
+                print(f"   💾 Comprehensive analysis plot saved successfully")
+            else:
+                print(f"   ❌ Failed to save comprehensive analysis plot")
 
         plt.show()
 
     def plot_detailed_learning_curves(self, figsize=(16, 12), save_plots=False, save_dir='output/evaluation_plots'):
-        """Create detailed learning curves for all models"""
+        """Create detailed learning curves for all models with fixed saving"""
 
         print("📈 Creating Detailed Learning Curves...")
 
         if save_plots:
-            os.makedirs(save_dir, exist_ok=True)
+            if not self._ensure_directory_exists(save_dir):
+                print("❌ Failed to create save directory, disabling save_plots")
+                save_plots = False
 
         # Filter models with learning curve data
         models_with_curves = {
@@ -877,11 +926,13 @@ class OverfittingAnalyzer:
         plt.tight_layout()
         plt.suptitle('Detailed Learning Curves Analysis', fontsize=16, fontweight='bold', y=1.02)
 
-        # Save plot if requested
+        # Save plot BEFORE showing it if requested
         if save_plots:
             filename = os.path.join(save_dir, 'learning_curves_detailed.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
+            if self._save_plot_safely(fig, filename):
+                print(f"   💾 Detailed learning curves plot saved successfully")
+            else:
+                print(f"   ❌ Failed to save detailed learning curves plot")
 
         plt.show()
 
@@ -1065,73 +1116,86 @@ class OverfittingAnalyzer:
         print(f"\n✅ Analysis complete! Use visualizations for detailed insights.")
 
     def export_analysis_results(self, filename="overfitting_analysis.csv", results_dir="output/results"):
-        """Export analysis results to CSV in specified results directory"""
+        """Export analysis results to CSV in specified results directory with improved error handling"""
 
         if not self.analysis_results:
             print("❌ No analysis data available")
             return None
 
-        # Create results directory
-        os.makedirs(results_dir, exist_ok=True)
+        # Create results directory with logging
+        if not self._ensure_directory_exists(results_dir):
+            print(f"❌ Failed to create results directory: {results_dir}")
+            return None
+
         full_path = os.path.join(results_dir, filename)
 
-        print(f"💾 Exporting overfitting analysis to {full_path}...")
+        print(f"💾 Exporting overfitting analysis to {os.path.abspath(full_path)}...")
 
-        export_data = []
+        try:
+            export_data = []
 
-        for model_key, analysis in self.analysis_results.items():
-            model_name = analysis['model_name']
-            train_perf = analysis['train_performance']
-            test_perf = analysis['test_performance']
-            diagnosis = analysis['fitting_diagnosis']
-            complexity = analysis['complexity_analysis']
+            for model_key, analysis in self.analysis_results.items():
+                model_name = analysis['model_name']
+                train_perf = analysis['train_performance']
+                test_perf = analysis['test_performance']
+                diagnosis = analysis['fitting_diagnosis']
+                complexity = analysis['complexity_analysis']
 
-            row = {
-                'model': model_name,
-                'model_key': model_key,
-                'train_accuracy': train_perf['accuracy'],
-                'test_accuracy': test_perf['accuracy'],
-                'performance_gap': train_perf['accuracy'] - test_perf['accuracy'],
-                'fitting_status': diagnosis['fitting_status'],
-                'fitting_confidence': diagnosis['confidence'],
-                'samples_to_features_ratio': complexity.get('samples_to_features_ratio', 0),
-                'regularization': complexity.get('regularization', 0)
-            }
+                row = {
+                    'model': model_name,
+                    'model_key': model_key,
+                    'train_accuracy': train_perf['accuracy'],
+                    'test_accuracy': test_perf['accuracy'],
+                    'performance_gap': train_perf['accuracy'] - test_perf['accuracy'],
+                    'fitting_status': diagnosis['fitting_status'],
+                    'fitting_confidence': diagnosis['confidence'],
+                    'samples_to_features_ratio': complexity.get('samples_to_features_ratio', 0),
+                    'regularization': complexity.get('regularization', 0)
+                }
 
-            # Add model-specific complexity metrics
-            if 'n_support_vectors' in complexity:
-                row['n_support_vectors'] = complexity['n_support_vectors']
-                row['support_vector_ratio'] = complexity['support_vector_ratio']
-            if 'weight_magnitude' in complexity:
-                row['weight_magnitude'] = complexity['weight_magnitude']
+                # Add model-specific complexity metrics
+                if 'n_support_vectors' in complexity:
+                    row['n_support_vectors'] = complexity['n_support_vectors']
+                    row['support_vector_ratio'] = complexity['support_vector_ratio']
+                if 'weight_magnitude' in complexity:
+                    row['weight_magnitude'] = complexity['weight_magnitude']
 
-            # Add training curve info
-            training_curves = analysis['training_curves']
-            if training_curves['available']:
-                row['training_converged'] = training_curves.get('converged', False)
-                row['training_epochs'] = training_curves.get('epochs_trained', 0)
-                row['training_improvement'] = training_curves.get('improvement_ratio', 0)
+                # Add training curve info
+                training_curves = analysis['training_curves']
+                if training_curves['available']:
+                    row['training_converged'] = training_curves.get('converged', False)
+                    row['training_epochs'] = training_curves.get('epochs_trained', 0)
+                    row['training_improvement'] = training_curves.get('improvement_ratio', 0)
 
-            # Add learning curve info
-            learning_curves = analysis['learning_curves']
-            if learning_curves['available']:
-                row['learning_curve_gap'] = learning_curves.get('gap_at_end', 0)
+                # Add learning curve info
+                learning_curves = analysis['learning_curves']
+                if learning_curves['available']:
+                    row['learning_curve_gap'] = learning_curves.get('gap_at_end', 0)
 
-            export_data.append(row)
+                export_data.append(row)
 
-        # Create DataFrame and save
-        df = pd.DataFrame(export_data)
-        df.to_csv(full_path, index=False)
+            # Create DataFrame and save
+            df = pd.DataFrame(export_data)
+            df.to_csv(full_path, index=False)
 
-        print(f"✅ Analysis results exported to {full_path}")
-        print(f"   Columns: {list(df.columns)}")
-        print(f"   Rows: {len(df)}")
+            # Verify file was created
+            if os.path.exists(full_path):
+                file_size = os.path.getsize(full_path)
+                print(f"✅ Analysis results exported successfully: {os.path.abspath(full_path)} ({file_size} bytes)")
+                print(f"   Columns: {list(df.columns)}")
+                print(f"   Rows: {len(df)}")
+                return df
+            else:
+                print(f"❌ CSV file was not created: {full_path}")
+                return None
 
-        return df
+        except Exception as e:
+            print(f"❌ Error exporting analysis results: {e}")
+            return None
 
     def create_comprehensive_analysis(self, figsize_1=(20, 15), figsize_2=(16, 12),
                                       save_plots=False, plots_dir='output/evaluation_plots', results_dir='output/results'):
-        """Create all analysis visualizations and reports with explicit directory control"""
+        """Create all analysis visualizations and reports with explicit directory control and improved logging"""
 
         print("\n🎨 CREATING COMPREHENSIVE OVERFITTING/UNDERFITTING ANALYSIS")
         print("=" * 75)
@@ -1141,25 +1205,36 @@ class OverfittingAnalyzer:
             return
 
         if save_plots:
-            os.makedirs(plots_dir, exist_ok=True)
-            os.makedirs(results_dir, exist_ok=True)
-            print(f"📁 Plots will be saved to: {plots_dir}/")
-            print(f"📁 Results will be saved to: {results_dir}/")
+            # Ensure both directories exist
+            plots_success = self._ensure_directory_exists(plots_dir)
+            results_success = self._ensure_directory_exists(results_dir)
+
+            if not plots_success or not results_success:
+                print("❌ Failed to create required directories, disabling save_plots")
+                save_plots = False
+            else:
+                print(f"📁 Plots will be saved to: {os.path.abspath(plots_dir)}/")
+                print(f"📁 Results will be saved to: {os.path.abspath(results_dir)}/")
 
         # Generate visualizations - all go to plots_dir
+        print("\n🎨 Generating comprehensive fitting analysis plots...")
         self.plot_fitting_analysis(figsize_1, save_plots, plots_dir)
+
+        print("\n📈 Generating detailed learning curves...")
         self.plot_detailed_learning_curves(figsize_2, save_plots, plots_dir)
 
         # Generate detailed report
+        print("\n📋 Generating comprehensive text report...")
         self.generate_comprehensive_report()
 
         # Export results to results_dir
         if save_plots:
+            print("\n💾 Exporting analysis results to CSV...")
             self.export_analysis_results("overfitting_analysis.csv", results_dir)
 
         if save_plots:
-            print(f"\n💾 All plots saved to: {plots_dir}/")
-            print(f"💾 All results saved to: {results_dir}/")
+            print(f"\n💾 All plots saved to: {os.path.abspath(plots_dir)}/")
+            print(f"💾 All results saved to: {os.path.abspath(results_dir)}/")
 
         print(f"\n🎉 Comprehensive overfitting/underfitting analysis complete!")
 
@@ -1168,7 +1243,7 @@ class OverfittingAnalyzer:
 def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
                                    save_plots=False, plots_dir="output/evaluation_plots", results_dir="output/results"):
     """
-    Integration function for existing project structure
+    Integration function for existing project structure with improved error handling
 
     Args:
         models_dict (dict): Dictionary of trained models
