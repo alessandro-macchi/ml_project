@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import learning_curve, validation_curve
 from sklearn.metrics import accuracy_score, f1_score
 import warnings
 import os
@@ -299,19 +298,19 @@ class OverfittingAnalyzer:
     def _create_fresh_model(self, model_key, original_model):
         """Create a fresh instance of the model with same parameters"""
         if 'lr' in model_key.lower():
-            from models.logistic_regression import LogisticRegressionScratch
+            from models.logistic.base_logistic import LogisticRegressionScratch
             return LogisticRegressionScratch(
                 learning_rate=getattr(original_model, 'learning_rate', 0.1),
                 regularization_strength=getattr(original_model, 'lambda_', 0.01),
                 epochs=getattr(original_model, 'epochs', 1000)
             )
         elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
-            from models.svm import SVMClassifierScratch
+            from models.svm.base_svm import SVMClassifierScratch
             return SVMClassifierScratch(
                 lambda_=getattr(original_model, 'lambda_', 0.01)
             )
         elif 'klr' in model_key.lower():
-            from models.kernel_logistic_regression import KernelLogisticRegression
+            from models.logistic.kernel_logistic import KernelLogisticRegression
             return KernelLogisticRegression(
                 kernel=getattr(original_model, 'kernel', None),
                 lambda_=getattr(original_model, 'lambda_', 0.01),
@@ -320,7 +319,7 @@ class OverfittingAnalyzer:
                 batch_size=32
             )
         elif 'ksvm' in model_key.lower():
-            from models.kernel_svm import KernelPegasosSVM
+            from models.svm.base_svm import KernelPegasosSVM
             return KernelPegasosSVM(
                 kernel=getattr(original_model, 'kernel', None),
                 lambda_=getattr(original_model, 'lambda_', 0.01),
@@ -529,7 +528,7 @@ class OverfittingAnalyzer:
             for indicator in diagnosis['indicators'][:3]:  # Show top 3
                 print(f"         • {indicator}")
 
-    def plot_fitting_analysis(self, figsize=(20, 15), save_plots=False, save_dir='evaluation_plots'):
+    def plot_fitting_analysis(self, figsize=(20, 15), save_plots=False, save_dir='output/evaluation_plots'):
         """Create comprehensive fitting analysis visualizations"""
 
         print("📊 Creating Overfitting/Underfitting Analysis Plots...")
@@ -777,7 +776,7 @@ class OverfittingAnalyzer:
 
         plt.show()
 
-    def plot_detailed_learning_curves(self, figsize=(16, 12), save_plots=False, save_dir='evaluation_plots'):
+    def plot_detailed_learning_curves(self, figsize=(16, 12), save_plots=False, save_dir='output/evaluation_plots'):
         """Create detailed learning curves for all models"""
 
         print("📈 Creating Detailed Learning Curves...")
@@ -1065,41 +1064,16 @@ class OverfittingAnalyzer:
 
         print(f"\n✅ Analysis complete! Use visualizations for detailed insights.")
 
-    def create_comprehensive_analysis(self, figsize_1=(20, 15), figsize_2=(16, 12), save_plots=False, save_dir='evaluation_plots'):
-        """Create all analysis visualizations and reports"""
-
-        print("\n🎨 CREATING COMPREHENSIVE OVERFITTING/UNDERFITTING ANALYSIS")
-        print("=" * 75)
-
-        if not self.analysis_results:
-            print("❌ No analysis data available. Run analyze_all_models() first.")
-            return
-
-        if save_plots:
-            os.makedirs(save_dir, exist_ok=True)
-            print(f"📁 Plots will be saved to: {save_dir}/")
-
-        # Generate visualizations
-        self.plot_fitting_analysis(figsize_1, save_plots, save_dir)
-        self.plot_detailed_learning_curves(figsize_2, save_plots, save_dir)
-
-        # Generate detailed report
-        self.generate_comprehensive_report()
-
-        if save_plots:
-            print(f"\n💾 All plots saved to: {save_dir}/")
-
-        print(f"\n🎉 Comprehensive overfitting/underfitting analysis complete!")
-
-    def export_analysis_results(self, filename="overfitting_analysis.csv", save_dir="evaluation_plots"):
-        """Export analysis results to CSV"""
+    def export_analysis_results(self, filename="overfitting_analysis.csv", results_dir="output/results"):
+        """Export analysis results to CSV in specified results directory"""
 
         if not self.analysis_results:
             print("❌ No analysis data available")
             return None
 
-        os.makedirs(save_dir, exist_ok=True)
-        full_path = os.path.join(save_dir, filename)
+        # Create results directory
+        os.makedirs(results_dir, exist_ok=True)
+        full_path = os.path.join(results_dir, filename)
 
         print(f"💾 Exporting overfitting analysis to {full_path}...")
 
@@ -1155,9 +1129,44 @@ class OverfittingAnalyzer:
 
         return df
 
+    def create_comprehensive_analysis(self, figsize_1=(20, 15), figsize_2=(16, 12),
+                                      save_plots=False, plots_dir='output/evaluation_plots', results_dir='output/results'):
+        """Create all analysis visualizations and reports with explicit directory control"""
 
-# Integration functions
-def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None, save_plots=False):
+        print("\n🎨 CREATING COMPREHENSIVE OVERFITTING/UNDERFITTING ANALYSIS")
+        print("=" * 75)
+
+        if not self.analysis_results:
+            print("❌ No analysis data available. Run analyze_all_models() first.")
+            return
+
+        if save_plots:
+            os.makedirs(plots_dir, exist_ok=True)
+            os.makedirs(results_dir, exist_ok=True)
+            print(f"📁 Plots will be saved to: {plots_dir}/")
+            print(f"📁 Results will be saved to: {results_dir}/")
+
+        # Generate visualizations - all go to plots_dir
+        self.plot_fitting_analysis(figsize_1, save_plots, plots_dir)
+        self.plot_detailed_learning_curves(figsize_2, save_plots, plots_dir)
+
+        # Generate detailed report
+        self.generate_comprehensive_report()
+
+        # Export results to results_dir
+        if save_plots:
+            self.export_analysis_results("overfitting_analysis.csv", results_dir)
+
+        if save_plots:
+            print(f"\n💾 All plots saved to: {plots_dir}/")
+            print(f"💾 All results saved to: {results_dir}/")
+
+        print(f"\n🎉 Comprehensive overfitting/underfitting analysis complete!")
+
+
+# Update the integration function
+def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
+                                   save_plots=False, plots_dir="output/evaluation_plots", results_dir="output/results"):
     """
     Integration function for existing project structure
 
@@ -1166,7 +1175,9 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
         X_train, y_train: Training data
         X_test, y_test: Test data
         model_names (dict): Optional display names for models
-        save_plots (bool): Whether to save plots to evaluation_plots directory
+        save_plots (bool): Whether to save plots and results
+        plots_dir (str): Directory for plots
+        results_dir (str): Directory for CSV files
 
     Returns:
         OverfittingAnalyzer: Analyzer with complete analysis
@@ -1191,11 +1202,7 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
     # Run analysis
     analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test, model_names)
 
-    # Create comprehensive analysis with plot saving option
-    analyzer.create_comprehensive_analysis(save_plots=save_plots)
-
-    # Export results to the same directory as plots
-    save_dir = "evaluation_plots" if save_plots else "results"
-    analyzer.export_analysis_results("overfitting_analysis.csv", save_dir)
+    # Create comprehensive analysis with explicit directory control
+    analyzer.create_comprehensive_analysis(save_plots=save_plots, plots_dir=plots_dir, results_dir=results_dir)
 
     return analyzer

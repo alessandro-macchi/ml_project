@@ -41,7 +41,7 @@ class ModelVisualizer:
     for model comparison and performance analysis.
     """
 
-    def __init__(self, save_dir='evaluation_plots'):
+    def __init__(self, save_dir='output/evaluation_plots'):
         """
         Initialize the visualizer
 
@@ -843,7 +843,7 @@ class ModelVisualizer:
 
 
 # Convenience functions for easy integration
-def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True, save_dir='evaluation_plots'):
+def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True, save_dir='output/evaluation_plots'):
     """
     Convenience function to create all visualizations with minimal setup
 
@@ -880,7 +880,7 @@ def create_model_visualizations(models_dict, results_dict, X_test, y_test, model
     return visualizer
 
 
-def quick_model_comparison(model_results, X_test, y_test, save_plots=True, save_dir='evaluation_plots'):
+def quick_model_comparison(model_results, X_test, y_test, save_plots=True, save_dir='output/evaluation_plots'):
     """
     Quick comparison function that works with just results (no model objects needed)
 
@@ -962,7 +962,7 @@ def quick_model_comparison(model_results, X_test, y_test, save_plots=True, save_
 
 
 # Integration functions for your existing project structure
-def integrate_with_experiment_results(experiment_results, X_test, y_test, save_plots=True, save_dir='evaluation_plots'):
+def integrate_with_experiment_results(experiment_results, X_test, y_test, save_plots=True, save_dir='output/evaluation_plots'):
     """
     Integration function specifically designed for your project structure
 

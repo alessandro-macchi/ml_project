@@ -33,12 +33,12 @@ class MisclassificationAnalyzer:
     Comprehensive misclassification analysis for understanding model limitations
     """
 
-    def __init__(self, save_dir="evaluation_plots"):
+    def __init__(self, save_dir="output/evaluation_plots"):
         """
         Initialize the misclassification analyzer
 
         Args:
-            save_dir (str): Directory to save analysis plots and results
+            save_dir (str): Directory to save analysis plots
         """
         self.save_dir = save_dir
         self.models = {}
@@ -984,15 +984,14 @@ class MisclassificationAnalyzer:
 
         print(f"\n✅ Analysis complete!")
 
-    def export_analysis_results(self, filename="misclassification_analysis.csv"):
-        """Export misclassification analysis results to CSV"""
+    def export_analysis_results(self, filename="misclassification_analysis.csv", results_dir="output/results"):
+        """Export misclassification analysis results to CSV in specified results directory"""
 
         if not self.misclassified_data:
             print("❌ No analysis data available")
             return None
 
-        # Ensure results directory exists and use it for file path
-        results_dir = os.path.join(self.save_dir, "../results")
+        # Create results directory
         os.makedirs(results_dir, exist_ok=True)
         full_path = os.path.join(results_dir, filename)
 
@@ -1087,7 +1086,7 @@ class MisclassificationAnalyzer:
             os.makedirs(final_save_dir, exist_ok=True)
             print(f"📁 Plots will be saved to: {final_save_dir}/")
 
-        # Generate visualizations
+        # Generate visualizations - all plots go to the same directory
         self.plot_feature_importance_misclassification(save_plots=save_plots, save_dir=final_save_dir)
         self.plot_misclassified_examples_distribution(save_plots=save_plots, save_dir=final_save_dir)
         self.plot_confidence_analysis(save_plots=save_plots, save_dir=final_save_dir)
@@ -1101,8 +1100,8 @@ class MisclassificationAnalyzer:
         print(f"\n🎉 Comprehensive misclassification analysis complete!")
 
 
-# Integration functions
-def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_names=None, model_names=None, save_plots=False):
+def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_names=None, model_names=None,
+                                         save_plots=False, plots_dir="output/evaluation_plots", results_dir="output/results"):
     """
     Integration function for existing project structure
 
@@ -1112,7 +1111,9 @@ def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_na
         y_test: Test labels
         feature_names (list): Names of features
         model_names (dict): Optional display names for models
-        save_plots (bool): Whether to save plots to evaluation_plots directory
+        save_plots (bool): Whether to save plots
+        plots_dir (str): Directory for plots
+        results_dir (str): Directory for CSV files
 
     Returns:
         MisclassificationAnalyzer: Analyzer with complete analysis
@@ -1131,13 +1132,17 @@ def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_na
     if model_names is None:
         model_names = default_names
 
-    # Create analyzer
-    analyzer = MisclassificationAnalyzer()
+    # Create analyzer with plots directory
+    analyzer = MisclassificationAnalyzer(save_dir=plots_dir)
 
     # Run analysis
     analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names, model_names)
 
-    # Create comprehensive analysis with plot saving option
-    analyzer.create_comprehensive_analysis(save_plots=save_plots)
+    # Create comprehensive analysis with explicit directories
+    analyzer.create_comprehensive_analysis(save_plots=save_plots, save_dir=plots_dir)
+
+    # Export results to results directory
+    if save_plots:  # Only export if we're in save mode
+        analyzer.export_analysis_results("wine_misclassification_analysis.csv", results_dir=results_dir)
 
     return analyzer

@@ -21,16 +21,16 @@ def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test
         tuple: (misclassification_analyzer, overfitting_analyzer)
     """
 
-    # Save results
+    # Save results to results directory
     save_results(results, experiment_name)
 
-    # Standard visualizations
+    # Standard visualizations - save to evaluation_plots
     run_visualizations(results, X_test, y_test)
 
-    # Misclassification analysis
+    # Misclassification analysis - ensure consistent directory usage
     misclassification_analyzer = run_misclassification_analysis(trained_models, X_test, y_test)
 
-    # Overfitting analysis
+    # Overfitting analysis - ensure consistent directory usage
     overfitting_analyzer = run_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test)
 
     return misclassification_analyzer, overfitting_analyzer
@@ -47,7 +47,7 @@ def run_visualizations(results, X_test, y_test):
 
 
 def run_misclassification_analysis(trained_models, X_test, y_test):
-    """Run enhanced misclassification analysis"""
+    """Run enhanced misclassification analysis with consistent directory structure"""
     print(f"\n{'=' * 70}")
     print("🔍 ENHANCED MISCLASSIFICATION ANALYSIS")
     print(f"{'=' * 70}")
@@ -55,23 +55,29 @@ def run_misclassification_analysis(trained_models, X_test, y_test):
     wine_feature_names = get_wine_feature_names()
     model_names = get_model_names()
 
-    analyzer = MisclassificationAnalyzer()
+    # Create analyzer with explicit save directory
+    analyzer = MisclassificationAnalyzer(save_dir="evaluation_plots")
     analyzer.analyze_all_models(trained_models, X_test, y_test, wine_feature_names, model_names)
-    analyzer.create_comprehensive_analysis()
-    analyzer.export_analysis_results("wine_misclassification_analysis.csv")
+
+    # Create comprehensive analysis with plots saved to evaluation_plots
+    analyzer.create_comprehensive_analysis(save_plots=True, save_dir="evaluation_plots")
+
+    # Export results to results directory
+    analyzer.export_analysis_results("wine_misclassification_analysis.csv", results_dir="results")
 
     return analyzer
 
 
 def run_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test):
-    """Run overfitting/underfitting analysis"""
+    """Run overfitting/underfitting analysis with consistent directory structure"""
     print(f"\n{'=' * 70}")
     print("🎯 OVERFITTING/UNDERFITTING ANALYSIS")
     print(f"{'=' * 70}")
 
     model_names = get_model_names()
     overfitting_analyzer = integrate_overfitting_analysis(
-        trained_models, X_train, y_train, X_test, y_test, model_names
+        trained_models, X_train, y_train, X_test, y_test, model_names,
+        save_plots=True, plots_dir="evaluation_plots", results_dir="results"
     )
 
     return overfitting_analyzer
