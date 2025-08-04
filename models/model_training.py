@@ -2,7 +2,7 @@ from src.utils import create_named_kernels
 from models.logistic.base_logistic import run_logistic_regression_experiment
 from models.svm.base_svm import run_svm_experiment
 from models.logistic.kernel_logistic import run_kernel_logistic_regression_experiment
-from models.svm.base_svm import run_kernel_svm_experiment
+from models.svm.kernel_svm import run_kernel_svm_experiment
 
 def get_parameter_grids():
     """

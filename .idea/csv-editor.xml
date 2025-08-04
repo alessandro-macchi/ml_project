@@ -24,6 +24,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\results\wine_misclassification_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
       </map>
     </option>
   </component>
