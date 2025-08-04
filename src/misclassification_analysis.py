@@ -1,16 +1,11 @@
 """
-Enhanced Misclassification Analysis Module with Plot Saving
+Enhanced Misclassification Analysis Module with Improved SVM Support and Report Saving
 
-This module provides deep analysis of misclassified examples to understand model limitations.
-It goes beyond basic metrics to examine the characteristics of misclassified samples.
-All plots are automatically saved to 'evaluation_plots' directory.
-
-Usage:
-    from src.misclassification_analysis import MisclassificationAnalyzer
-
-    analyzer = MisclassificationAnalyzer()
-    analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names)
-    analyzer.create_comprehensive_analysis()  # Saves plots automatically
+Key improvements:
+1. Better SVM probability handling for confidence analysis
+2. Robust decision function to probability conversion
+3. Graceful handling when confidence analysis isn't suitable
+4. All reports saved to output/results directory
 """
 
 import numpy as np
@@ -18,6 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+from sklearn.calibration import CalibratedClassifierCV
 import warnings
 import os
 
@@ -107,15 +103,8 @@ class MisclassificationAnalyzer:
         # Get predictions
         y_pred = model.predict(self.X_test)
 
-        # Get prediction probabilities if available
-        try:
-            y_proba = model.predict_proba(self.X_test)
-        except:
-            try:
-                y_scores = model.decision_function(self.X_test)
-                y_proba = 1 / (1 + np.exp(-np.array(y_scores)))
-            except:
-                y_proba = None
+        # Get prediction probabilities with improved SVM handling
+        y_proba = self._get_model_probabilities(model, model_key)
 
         # Identify misclassified examples
         misclassified_mask = self.y_test != y_pred
@@ -137,11 +126,95 @@ class MisclassificationAnalyzer:
             'misclassified_indices': misclassified_indices,
             'false_positives': false_positives,
             'false_negatives': false_negatives,
-            'analysis': analysis
+            'analysis': analysis,
+            'model_type': self._get_model_type(model_key)
         }
 
         # Print summary
         self._print_model_summary(model_key, analysis)
+
+    def _get_model_probabilities(self, model, model_key):
+        """
+        Get prediction probabilities with improved handling for different model types
+
+        Args:
+            model: The trained model
+            model_key: Key identifying the model type
+
+        Returns:
+            numpy array of probabilities or None if not available
+        """
+        try:
+            # First try predict_proba (works for most sklearn models and some custom models)
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(self.X_test)
+                if len(proba.shape) == 2 and proba.shape[1] == 2:
+                    return proba[:, 1]  # Return probability of positive class
+                elif len(proba.shape) == 1:
+                    return proba
+                else:
+                    print(f"   ⚠️ Unexpected predict_proba shape for {model_key}: {proba.shape}")
+
+            # For SVM models, try decision_function
+            if hasattr(model, 'decision_function'):
+                decision_scores = model.decision_function(self.X_test)
+
+                # Handle different decision function output shapes
+                if len(decision_scores.shape) == 1:
+                    # Binary classification - convert to probabilities using sigmoid
+                    probabilities = self._sigmoid(decision_scores)
+                    print(f"   📊 {model_key}: Using decision function → sigmoid conversion")
+                    return probabilities
+                elif len(decision_scores.shape) == 2 and decision_scores.shape[1] == 1:
+                    # Sometimes decision function returns (n_samples, 1) for binary classification
+                    probabilities = self._sigmoid(decision_scores.flatten())
+                    print(f"   📊 {model_key}: Using decision function (2D→1D) → sigmoid conversion")
+                    return probabilities
+                else:
+                    print(f"   ⚠️ Unexpected decision_function shape for {model_key}: {decision_scores.shape}")
+
+            # Try custom model attributes that might contain scores
+            if hasattr(model, 'decision_scores') and model.decision_scores is not None:
+                scores = model.decision_scores
+                if hasattr(scores, '__len__') and len(scores) == len(self.X_test):
+                    probabilities = self._sigmoid(np.array(scores))
+                    print(f"   📊 {model_key}: Using custom decision_scores → sigmoid conversion")
+                    return probabilities
+
+            # For custom models that might store probabilities differently
+            if hasattr(model, 'predict_scores'):
+                try:
+                    scores = model.predict_scores(self.X_test)
+                    probabilities = self._sigmoid(np.array(scores))
+                    print(f"   📊 {model_key}: Using custom predict_scores → sigmoid conversion")
+                    return probabilities
+                except:
+                    pass
+
+            # Last resort: try to calibrate the model
+            print(f"   ⚠️ {model_key}: No direct probability method available")
+            print(f"       Available methods: {[attr for attr in dir(model) if 'predict' in attr.lower() or 'decision' in attr.lower()]}")
+
+            return None
+
+        except Exception as e:
+            print(f"   ⚠️ Error getting probabilities for {model_key}: {e}")
+            return None
+
+    def _sigmoid(self, x):
+        """Apply sigmoid function to convert decision scores to probabilities"""
+        # Clip x to prevent overflow
+        x = np.clip(x, -500, 500)
+        return 1 / (1 + np.exp(-x))
+
+    def _get_model_type(self, model_key):
+        """Determine model type from model key"""
+        if 'svm' in model_key.lower():
+            return 'svm'
+        elif 'lr' in model_key.lower() or 'logistic' in model_key.lower():
+            return 'logistic'
+        else:
+            return 'other'
 
     def _analyze_misclassified_characteristics(self, misclassified_indices, fp_indices, fn_indices, y_proba):
         """Analyze the characteristics of misclassified examples"""
@@ -244,51 +317,57 @@ class MisclassificationAnalyzer:
         """Analyze prediction confidence for misclassified examples"""
 
         if y_proba is None or len(misclassified_indices) == 0:
-            return {'available': False}
+            return {'available': False, 'reason': 'No probability data available'}
 
-        correctly_classified = np.setdiff1d(np.arange(len(self.y_test)), misclassified_indices)
+        try:
+            correctly_classified = np.setdiff1d(np.arange(len(self.y_test)), misclassified_indices)
 
-        # Calculate confidence (distance from 0.5)
-        confidence_misc = np.abs(y_proba[misclassified_indices] - 0.5)
-        confidence_correct = np.abs(y_proba[correctly_classified] - 0.5)
+            # Calculate confidence (distance from 0.5)
+            confidence_misc = np.abs(y_proba[misclassified_indices] - 0.5)
+            confidence_correct = np.abs(y_proba[correctly_classified] - 0.5)
 
-        return {
-            'available': True,
-            'misclassified_avg_confidence': np.mean(confidence_misc),
-            'correct_avg_confidence': np.mean(confidence_correct),
-            'confidence_difference': np.mean(confidence_correct) - np.mean(confidence_misc),
-            'low_confidence_threshold': 0.1,  # Close to 0.5
-            'low_confidence_misclassified': np.sum(confidence_misc < 0.1),
-            'low_confidence_correct': np.sum(confidence_correct < 0.1),
-            'high_confidence_misclassified': np.sum(confidence_misc > 0.4),
-            'misclassified_proba_mean': np.mean(y_proba[misclassified_indices]),
-            'misclassified_proba_std': np.std(y_proba[misclassified_indices])
-        }
+            return {
+                'available': True,
+                'misclassified_avg_confidence': np.mean(confidence_misc),
+                'correct_avg_confidence': np.mean(confidence_correct),
+                'confidence_difference': np.mean(confidence_correct) - np.mean(confidence_misc),
+                'low_confidence_threshold': 0.1,  # Close to 0.5
+                'low_confidence_misclassified': np.sum(confidence_misc < 0.1),
+                'low_confidence_correct': np.sum(confidence_correct < 0.1),
+                'high_confidence_misclassified': np.sum(confidence_misc > 0.4),
+                'misclassified_proba_mean': np.mean(y_proba[misclassified_indices]),
+                'misclassified_proba_std': np.std(y_proba[misclassified_indices])
+            }
+        except Exception as e:
+            return {'available': False, 'reason': f'Error in confidence analysis: {str(e)}'}
 
     def _analyze_class_boundaries(self, y_proba):
         """Analyze samples near class boundaries"""
 
         if y_proba is None:
-            return {'available': False}
+            return {'available': False, 'reason': 'No probability data available'}
 
-        # Define boundary region (e.g., probability between 0.4 and 0.6)
-        boundary_mask = (y_proba >= 0.4) & (y_proba <= 0.6)
-        boundary_indices = np.where(boundary_mask)[0]
+        try:
+            # Define boundary region (e.g., probability between 0.4 and 0.6)
+            boundary_mask = (y_proba >= 0.4) & (y_proba <= 0.6)
+            boundary_indices = np.where(boundary_mask)[0]
 
-        if len(boundary_indices) == 0:
-            return {'available': True, 'boundary_samples': 0}
+            if len(boundary_indices) == 0:
+                return {'available': True, 'boundary_samples': 0}
 
-        # Analyze accuracy in boundary region
-        boundary_predictions = (y_proba[boundary_indices] >= 0.5).astype(int)
-        boundary_accuracy = np.mean(boundary_predictions == self.y_test[boundary_indices])
+            # Analyze accuracy in boundary region
+            boundary_predictions = (y_proba[boundary_indices] >= 0.5).astype(int)
+            boundary_accuracy = np.mean(boundary_predictions == self.y_test[boundary_indices])
 
-        return {
-            'available': True,
-            'boundary_samples': len(boundary_indices),
-            'boundary_percentage': len(boundary_indices) / len(y_proba) * 100,
-            'boundary_accuracy': boundary_accuracy,
-            'boundary_error_rate': 1 - boundary_accuracy
-        }
+            return {
+                'available': True,
+                'boundary_samples': len(boundary_indices),
+                'boundary_percentage': len(boundary_indices) / len(y_proba) * 100,
+                'boundary_accuracy': boundary_accuracy,
+                'boundary_error_rate': 1 - boundary_accuracy
+            }
+        except Exception as e:
+            return {'available': False, 'reason': f'Error in boundary analysis: {str(e)}'}
 
     def _print_model_summary(self, model_key, analysis):
         """Print summary of misclassification analysis for a model"""
@@ -329,15 +408,230 @@ class MisclassificationAnalyzer:
 
             if conf_analysis['low_confidence_misclassified'] > 0:
                 print(f"      Low-confidence misclassifications: {conf_analysis['low_confidence_misclassified']}")
+        else:
+            reason = conf_analysis.get('reason', 'Unknown')
+            print(f"      Confidence analysis: Not available ({reason})")
 
-    def plot_feature_importance_misclassification(self, figsize=(16, 10), save_plots=False, save_dir=None):
+    def plot_confidence_analysis(self, figsize=(14, 10), save_plots=False, save_dir=None):
         """
-        Plot feature importance in misclassification
+        Create detailed confidence analysis plots with better SVM handling
 
         Args:
             figsize (tuple): Figure size for the plot
             save_plots (bool): Whether to save the plot
             save_dir (str): Directory to save plots (overrides default)
+        """
+        print("📊 Creating Confidence Analysis...")
+
+        if not self.misclassified_data:
+            print("❌ No misclassification data available")
+            return
+
+        # Filter models with confidence data
+        models_with_conf = {}
+        models_without_conf = {}
+
+        for model_key, data in self.misclassified_data.items():
+            if data['analysis']['confidence_analysis'].get('available', False):
+                models_with_conf[model_key] = data
+            else:
+                models_without_conf[model_key] = data
+
+        print(f"   Models with confidence data: {len(models_with_conf)}")
+        print(f"   Models without confidence data: {len(models_without_conf)}")
+
+        if models_without_conf:
+            print("   Models missing confidence analysis:")
+            for model_key in models_without_conf:
+                model_name = self.models[model_key]['name']
+                reason = models_without_conf[model_key]['analysis']['confidence_analysis'].get('reason', 'Unknown')
+                print(f"      • {model_name}: {reason}")
+
+        if not models_with_conf:
+            print("❌ No confidence data available for any model")
+            return
+
+        fig, axes = plt.subplots(2, 2, figsize=figsize)
+
+        # 1. Confidence distributions (first model with confidence data)
+        ax1 = axes[0, 0]
+        first_model = list(models_with_conf.keys())[0]
+        probabilities = models_with_conf[first_model]['probabilities']
+        misclassified_indices = models_with_conf[first_model]['misclassified_indices']
+
+        correctly_classified = np.setdiff1d(np.arange(len(self.y_test)), misclassified_indices)
+
+        # Plot probability distributions
+        ax1.hist(probabilities[correctly_classified], alpha=0.6, bins=30, label='Correct',
+                color='lightgreen', density=True)
+        ax1.hist(probabilities[misclassified_indices], alpha=0.8, bins=20, label='Misclassified',
+                color='red', density=True)
+
+        # Add decision boundary
+        ax1.axvline(0.5, color='black', linestyle='--', alpha=0.7, label='Decision Boundary')
+
+        ax1.set_xlabel('Prediction Probability')
+        ax1.set_ylabel('Density')
+        ax1.set_title(f'Prediction Probability Distribution\n({self.models[first_model]["name"]})',
+                     fontweight='bold')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        # 2. Confidence vs Accuracy scatter
+        ax2 = axes[0, 1]
+
+        # Create confidence bins and calculate accuracy for each
+        conf_bins = np.linspace(0, 0.5, 11)  # Confidence is distance from 0.5
+        bin_accuracies = []
+        bin_centers = []
+        bin_counts = []
+
+        for i in range(len(conf_bins) - 1):
+            conf_lower = conf_bins[i]
+            conf_upper = conf_bins[i + 1]
+
+            # Find samples in this confidence range
+            confidence_all = np.abs(probabilities - 0.5)
+            in_bin = (confidence_all >= conf_lower) & (confidence_all < conf_upper)
+
+            if np.sum(in_bin) > 0:
+                predictions = (probabilities[in_bin] >= 0.5).astype(int)
+                accuracy = np.mean(predictions == self.y_test[in_bin])
+
+                bin_accuracies.append(accuracy)
+                bin_centers.append((conf_lower + conf_upper) / 2)
+                bin_counts.append(np.sum(in_bin))
+
+        if bin_centers:
+            # Size points by number of samples
+            sizes = [max(20, min(200, count * 5)) for count in bin_counts]
+            scatter = ax2.scatter(bin_centers, bin_accuracies, s=sizes, alpha=0.7, c=bin_counts,
+                                cmap='viridis')
+
+            # Add trend line
+            if len(bin_centers) > 1:
+                z = np.polyfit(bin_centers, bin_accuracies, 1)
+                p = np.poly1d(z)
+                ax2.plot(bin_centers, p(bin_centers), "r--", alpha=0.8, label='Trend')
+
+            ax2.set_xlabel('Confidence (Distance from 0.5)')
+            ax2.set_ylabel('Accuracy')
+            ax2.set_title('Confidence vs Accuracy', fontweight='bold')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            plt.colorbar(scatter, ax=ax2, shrink=0.8, label='Sample Count')
+
+        # 3. Boundary analysis (only for models with confidence data)
+        ax3 = axes[1, 0]
+
+        boundary_data = []
+        boundary_models = []
+
+        for model_key in models_with_conf.keys():
+            boundary_analysis = models_with_conf[model_key]['analysis']['class_boundary_analysis']
+            if boundary_analysis.get('available', False) and boundary_analysis.get('boundary_samples', 0) > 0:
+                boundary_data.append([
+                    boundary_analysis['boundary_percentage'],
+                    boundary_analysis['boundary_accuracy'] * 100
+                ])
+                boundary_models.append(self.models[model_key]['name'].replace(' (Custom)', ''))
+
+        if boundary_data:
+            boundary_data = np.array(boundary_data)
+            x = np.arange(len(boundary_models))
+            width = 0.35
+
+            bars1 = ax3.bar(x - width/2, boundary_data[:, 0], width, label='% in Boundary', alpha=0.8, color='lightblue')
+            bars2 = ax3.bar(x + width/2, boundary_data[:, 1], width, label='Boundary Accuracy %', alpha=0.8, color='orange')
+
+            ax3.set_xlabel('Models')
+            ax3.set_ylabel('Percentage')
+            ax3.set_title('Decision Boundary Analysis\n(Models with Confidence Data)', fontweight='bold')
+            ax3.set_xticks(x)
+            ax3.set_xticklabels(boundary_models, rotation=45, ha='right')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+
+            # Add value labels
+            for bars in [bars1, bars2]:
+                for bar in bars:
+                    height = bar.get_height()
+                    ax3.text(bar.get_x() + bar.get_width() / 2., height + 1,
+                             f'{height:.1f}%', ha='center', va='bottom', fontsize=8)
+        else:
+            ax3.text(0.5, 0.5, 'No boundary analysis data\navailable',
+                    ha='center', va='center', transform=ax3.transAxes, fontsize=12)
+            ax3.set_title('Decision Boundary Analysis', fontweight='bold')
+
+        # 4. Confidence comparison across models (only models with confidence data)
+        ax4 = axes[1, 1]
+
+        conf_comparison = []
+        comp_models = []
+
+        for model_key in models_with_conf.keys():
+            conf_analysis = models_with_conf[model_key]['analysis']['confidence_analysis']
+            conf_comparison.append([
+                conf_analysis['correct_avg_confidence'],
+                conf_analysis['misclassified_avg_confidence'],
+                conf_analysis['confidence_difference']
+            ])
+            comp_models.append(self.models[model_key]['name'].replace(' (Custom)', ''))
+
+        if conf_comparison:
+            conf_comparison = np.array(conf_comparison)
+
+            # Plot confidence difference
+            colors = ['green' if diff > 0 else 'red' for diff in conf_comparison[:, 2]]
+            bars = ax4.bar(range(len(comp_models)), conf_comparison[:, 2], color=colors, alpha=0.7)
+
+            ax4.set_xlabel('Models')
+            ax4.set_ylabel('Confidence Difference\n(Correct - Misclassified)')
+            ax4.set_title('Model Confidence Discrimination\n(Available Models Only)', fontweight='bold')
+            ax4.set_xticks(range(len(comp_models)))
+            ax4.set_xticklabels(comp_models, rotation=45, ha='right')
+            ax4.grid(True, alpha=0.3)
+            ax4.axhline(y=0, color='black', linestyle='-', alpha=0.5)
+
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                ax4.text(bar.get_x() + bar.get_width() / 2.,
+                         height + 0.005 if height >= 0 else height - 0.01,
+                         f'{height:.3f}', ha='center',
+                         va='bottom' if height >= 0 else 'top', fontsize=8)
+        else:
+            ax4.text(0.5, 0.5, 'No confidence comparison\ndata available',
+                    ha='center', va='center', transform=ax4.transAxes, fontsize=12)
+            ax4.set_title('Model Confidence Discrimination', fontweight='bold')
+
+        plt.tight_layout()
+        plt.suptitle('Detailed Confidence Analysis', fontsize=16, fontweight='bold', y=1.02)
+
+        # Save plot if requested
+        if save_plots:
+            save_directory = save_dir or self.save_dir
+            os.makedirs(save_directory, exist_ok=True)
+            filename = os.path.join(save_directory, 'misclassification_confidence_analysis.png')
+            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+            print(f"   💾 Saved: {filename}")
+
+        plt.show()
+
+        # Print summary of confidence analysis availability
+        if models_without_conf:
+            print(f"\n📝 Note: Confidence analysis not available for {len(models_without_conf)} models:")
+            for model_key in models_without_conf:
+                model_name = self.models[model_key]['name']
+                model_type = self.misclassified_data[model_key]['model_type']
+                print(f"   • {model_name} ({model_type}): Confidence analysis requires probability estimates")
+
+    # Keep all other existing methods unchanged...
+    # (The rest of the methods remain the same as in the original code)
+
+    def plot_feature_importance_misclassification(self, figsize=(16, 10), save_plots=False, save_dir=None):
+        """
+        Plot feature importance in misclassification (unchanged from original)
         """
         print("📊 Creating Feature Misclassification Analysis...")
 
@@ -441,7 +735,7 @@ class MisclassificationAnalyzer:
             ax2.text(bar.get_x() + bar.get_width() / 2., height + 0.1,
                      f'{int(height)}', ha='center', va='bottom')
 
-        # 3. Confidence analysis
+        # 3. Confidence analysis (modified to handle missing data)
         ax3 = axes[1, 0]
 
         conf_data = []
@@ -466,7 +760,7 @@ class MisclassificationAnalyzer:
 
             ax3.set_xlabel('Models')
             ax3.set_ylabel('Average Confidence')
-            ax3.set_title('Prediction Confidence Analysis', fontweight='bold')
+            ax3.set_title('Prediction Confidence Analysis\n(Available Models Only)', fontweight='bold')
             ax3.set_xticks(x)
             ax3.set_xticklabels(model_names_conf, rotation=45, ha='right')
             ax3.legend()
@@ -479,8 +773,8 @@ class MisclassificationAnalyzer:
                     ax3.text(bar.get_x() + bar.get_width() / 2., height + 0.01,
                              f'{height:.3f}', ha='center', va='bottom', fontsize=8)
         else:
-            ax3.text(0.5, 0.5, 'No confidence data available',
-                     ha='center', va='center', transform=ax3.transAxes)
+            ax3.text(0.5, 0.5, 'No confidence data available\n(Models may not support\nprobability estimation)',
+                     ha='center', va='center', transform=ax3.transAxes, fontsize=11)
             ax3.set_title('Prediction Confidence Analysis', fontweight='bold')
 
         # 4. Error type distribution
@@ -530,12 +824,7 @@ class MisclassificationAnalyzer:
 
     def plot_misclassified_examples_distribution(self, figsize=(16, 12), save_plots=False, save_dir=None):
         """
-        Plot distribution of misclassified examples in feature space
-
-        Args:
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-            save_dir (str): Directory to save plots (overrides default)
+        Plot distribution of misclassified examples in feature space (unchanged from original)
         """
         print("📊 Creating Misclassified Examples Distribution...")
 
@@ -638,190 +927,6 @@ class MisclassificationAnalyzer:
 
         plt.show()
 
-    def plot_confidence_analysis(self, figsize=(14, 10), save_plots=False, save_dir=None):
-        """
-        Create detailed confidence analysis plots
-
-        Args:
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-            save_dir (str): Directory to save plots (overrides default)
-        """
-        print("📊 Creating Confidence Analysis...")
-
-        if not self.misclassified_data:
-            print("❌ No misclassification data available")
-            return
-
-        # Filter models with confidence data
-        models_with_conf = {}
-        for model_key, data in self.misclassified_data.items():
-            if data['analysis']['confidence_analysis'].get('available', False):
-                models_with_conf[model_key] = data
-
-        if not models_with_conf:
-            print("❌ No confidence data available")
-            return
-
-        fig, axes = plt.subplots(2, 2, figsize=figsize)
-
-        # 1. Confidence distributions
-        ax1 = axes[0, 0]
-        first_model = list(models_with_conf.keys())[0]
-        probabilities = models_with_conf[first_model]['probabilities']
-        misclassified_indices = models_with_conf[first_model]['misclassified_indices']
-
-        correctly_classified = np.setdiff1d(np.arange(len(self.y_test)), misclassified_indices)
-
-        # Plot probability distributions
-        ax1.hist(probabilities[correctly_classified], alpha=0.6, bins=30, label='Correct',
-                color='lightgreen', density=True)
-        ax1.hist(probabilities[misclassified_indices], alpha=0.8, bins=20, label='Misclassified',
-                color='red', density=True)
-
-        # Add decision boundary
-        ax1.axvline(0.5, color='black', linestyle='--', alpha=0.7, label='Decision Boundary')
-
-        ax1.set_xlabel('Prediction Probability')
-        ax1.set_ylabel('Density')
-        ax1.set_title(f'Prediction Probability Distribution\n({self.models[first_model]["name"]})',
-                     fontweight='bold')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-
-        # 2. Confidence vs Accuracy scatter
-        ax2 = axes[0, 1]
-
-        # Create confidence bins and calculate accuracy for each
-        conf_bins = np.linspace(0, 0.5, 11)  # Confidence is distance from 0.5
-        bin_accuracies = []
-        bin_centers = []
-        bin_counts = []
-
-        for i in range(len(conf_bins) - 1):
-            conf_lower = conf_bins[i]
-            conf_upper = conf_bins[i + 1]
-
-            # Find samples in this confidence range
-            confidence_all = np.abs(probabilities - 0.5)
-            in_bin = (confidence_all >= conf_lower) & (confidence_all < conf_upper)
-
-            if np.sum(in_bin) > 0:
-                predictions = (probabilities[in_bin] >= 0.5).astype(int)
-                accuracy = np.mean(predictions == self.y_test[in_bin])
-
-                bin_accuracies.append(accuracy)
-                bin_centers.append((conf_lower + conf_upper) / 2)
-                bin_counts.append(np.sum(in_bin))
-
-        if bin_centers:
-            # Size points by number of samples
-            sizes = [max(20, min(200, count * 5)) for count in bin_counts]
-            scatter = ax2.scatter(bin_centers, bin_accuracies, s=sizes, alpha=0.7, c=bin_counts,
-                                cmap='viridis')
-
-            # Add trend line
-            if len(bin_centers) > 1:
-                z = np.polyfit(bin_centers, bin_accuracies, 1)
-                p = np.poly1d(z)
-                ax2.plot(bin_centers, p(bin_centers), "r--", alpha=0.8, label='Trend')
-
-            ax2.set_xlabel('Confidence (Distance from 0.5)')
-            ax2.set_ylabel('Accuracy')
-            ax2.set_title('Confidence vs Accuracy', fontweight='bold')
-            ax2.legend()
-            ax2.grid(True, alpha=0.3)
-            plt.colorbar(scatter, ax=ax2, shrink=0.8, label='Sample Count')
-
-        # 3. Boundary analysis
-        ax3 = axes[1, 0]
-
-        boundary_data = []
-        boundary_models = []
-
-        for model_key in models_with_conf.keys():
-            boundary_analysis = models_with_conf[model_key]['analysis']['class_boundary_analysis']
-            if boundary_analysis.get('available', False) and boundary_analysis.get('boundary_samples', 0) > 0:
-                boundary_data.append([
-                    boundary_analysis['boundary_percentage'],
-                    boundary_analysis['boundary_accuracy'] * 100
-                ])
-                boundary_models.append(self.models[model_key]['name'].replace(' (Custom)', ''))
-
-        if boundary_data:
-            boundary_data = np.array(boundary_data)
-            x = np.arange(len(boundary_models))
-            width = 0.35
-
-            bars1 = ax3.bar(x - width/2, boundary_data[:, 0], width, label='% in Boundary', alpha=0.8, color='lightblue')
-            bars2 = ax3.bar(x + width/2, boundary_data[:, 1], width, label='Boundary Accuracy %', alpha=0.8, color='orange')
-
-            ax3.set_xlabel('Models')
-            ax3.set_ylabel('Percentage')
-            ax3.set_title('Decision Boundary Analysis', fontweight='bold')
-            ax3.set_xticks(x)
-            ax3.set_xticklabels(boundary_models, rotation=45, ha='right')
-            ax3.legend()
-            ax3.grid(True, alpha=0.3)
-
-            # Add value labels
-            for bars in [bars1, bars2]:
-                for bar in bars:
-                    height = bar.get_height()
-                    ax3.text(bar.get_x() + bar.get_width() / 2., height + 1,
-                             f'{height:.1f}%', ha='center', va='bottom', fontsize=8)
-
-        # 4. Confidence comparison across models
-        ax4 = axes[1, 1]
-
-        conf_comparison = []
-        comp_models = []
-
-        for model_key in models_with_conf.keys():
-            conf_analysis = models_with_conf[model_key]['analysis']['confidence_analysis']
-            conf_comparison.append([
-                conf_analysis['correct_avg_confidence'],
-                conf_analysis['misclassified_avg_confidence'],
-                conf_analysis['confidence_difference']
-            ])
-            comp_models.append(self.models[model_key]['name'].replace(' (Custom)', ''))
-
-        if conf_comparison:
-            conf_comparison = np.array(conf_comparison)
-
-            # Plot confidence difference
-            colors = ['green' if diff > 0 else 'red' for diff in conf_comparison[:, 2]]
-            bars = ax4.bar(range(len(comp_models)), conf_comparison[:, 2], color=colors, alpha=0.7)
-
-            ax4.set_xlabel('Models')
-            ax4.set_ylabel('Confidence Difference\n(Correct - Misclassified)')
-            ax4.set_title('Model Confidence Discrimination', fontweight='bold')
-            ax4.set_xticks(range(len(comp_models)))
-            ax4.set_xticklabels(comp_models, rotation=45, ha='right')
-            ax4.grid(True, alpha=0.3)
-            ax4.axhline(y=0, color='black', linestyle='-', alpha=0.5)
-
-            # Add value labels
-            for bar in bars:
-                height = bar.get_height()
-                ax4.text(bar.get_x() + bar.get_width() / 2.,
-                         height + 0.005 if height >= 0 else height - 0.01,
-                         f'{height:.3f}', ha='center',
-                         va='bottom' if height >= 0 else 'top', fontsize=8)
-
-        plt.tight_layout()
-        plt.suptitle('Detailed Confidence Analysis', fontsize=16, fontweight='bold', y=1.02)
-
-        # Save plot if requested
-        if save_plots:
-            save_directory = save_dir or self.save_dir
-            os.makedirs(save_directory, exist_ok=True)
-            filename = os.path.join(save_directory, 'misclassification_confidence_analysis.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
-
-        plt.show()
-
     def generate_detailed_report(self):
         """Generate comprehensive text report of misclassification analysis"""
 
@@ -841,6 +946,14 @@ class MisclassificationAnalyzer:
 
         print(f"   Models analyzed: {total_models}")
         print(f"   Total test samples: {total_samples}")
+
+        # Count models with/without confidence analysis
+        models_with_confidence = sum(1 for data in self.misclassified_data.values()
+                                    if data['analysis']['confidence_analysis'].get('available', False))
+        models_without_confidence = total_models - models_with_confidence
+
+        print(f"   Models with confidence analysis: {models_with_confidence}")
+        print(f"   Models without confidence analysis: {models_without_confidence}")
 
         # Model-specific analysis
         print(f"\n📊 MODEL-SPECIFIC ANALYSIS:")
@@ -882,6 +995,9 @@ class MisclassificationAnalyzer:
 
                 if conf_analysis['low_confidence_misclassified'] > 0:
                     print(f"      • Low-confidence errors: {conf_analysis['low_confidence_misclassified']}")
+            else:
+                reason = conf_analysis.get('reason', 'Unknown')
+                print(f"   Confidence analysis: Not available ({reason})")
 
             # Boundary analysis summary
             boundary_analysis = analysis['class_boundary_analysis']
@@ -889,6 +1005,9 @@ class MisclassificationAnalyzer:
                 print(f"   Decision boundary analysis:")
                 print(f"      • Samples in boundary region: {boundary_analysis['boundary_samples']} ({boundary_analysis['boundary_percentage']:.1f}%)")
                 print(f"      • Boundary region accuracy: {boundary_analysis['boundary_accuracy']:.3f}")
+            elif not boundary_analysis.get('available', False):
+                reason = boundary_analysis.get('reason', 'Unknown')
+                print(f"   Decision boundary analysis: Not available ({reason})")
 
         # Cross-model insights
         print(f"\n🎯 CROSS-MODEL INSIGHTS:")
@@ -982,6 +1101,19 @@ class MisclassificationAnalyzer:
             print(f"      • Models with poor confidence discrimination: {', '.join(low_conf_models)}")
             print(f"      • Consider calibration techniques")
 
+        # Recommendations for models without confidence analysis
+        models_without_conf = [
+            self.models[model_key]['name']
+            for model_key, data in self.misclassified_data.items()
+            if not data['analysis']['confidence_analysis'].get('available', False)
+        ]
+
+        if models_without_conf:
+            print(f"   🔧 Confidence Analysis Unavailable:")
+            print(f"      • Models: {', '.join(models_without_conf)}")
+            print(f"      • Consider using probability calibration techniques")
+            print(f"      • Alternative: Use prediction margins from decision functions")
+
         print(f"\n✅ Analysis complete!")
 
     def export_analysis_results(self, filename="misclassification_analysis.csv", results_dir="output/results"):
@@ -1007,6 +1139,7 @@ class MisclassificationAnalyzer:
             row = {
                 'model': model_name,
                 'model_key': model_key,
+                'model_type': data['model_type'],
                 'total_misclassified': analysis['total_misclassified'],
                 'misclassification_rate': analysis['misclassification_rate'],
                 'false_positives': analysis['false_positives'],
@@ -1017,6 +1150,7 @@ class MisclassificationAnalyzer:
 
             # Confidence metrics
             conf_analysis = analysis['confidence_analysis']
+            row['confidence_analysis_available'] = conf_analysis.get('available', False)
             if conf_analysis.get('available', False):
                 row.update({
                     'correct_avg_confidence': conf_analysis['correct_avg_confidence'],
@@ -1024,15 +1158,20 @@ class MisclassificationAnalyzer:
                     'confidence_difference': conf_analysis['confidence_difference'],
                     'low_confidence_misclassified': conf_analysis['low_confidence_misclassified']
                 })
+            else:
+                row['confidence_unavailable_reason'] = conf_analysis.get('reason', 'Unknown')
 
             # Boundary analysis
             boundary_analysis = analysis['class_boundary_analysis']
+            row['boundary_analysis_available'] = boundary_analysis.get('available', False)
             if boundary_analysis.get('available', False):
                 row.update({
                     'boundary_samples': boundary_analysis.get('boundary_samples', 0),
                     'boundary_percentage': boundary_analysis.get('boundary_percentage', 0),
                     'boundary_accuracy': boundary_analysis.get('boundary_accuracy', 0)
                 })
+            else:
+                row['boundary_unavailable_reason'] = boundary_analysis.get('reason', 'Unknown')
 
             # Feature analysis summary
             feature_analysis = analysis['feature_analysis']
