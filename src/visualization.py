@@ -19,8 +19,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
-    confusion_matrix, roc_curve, auc, precision_recall_curve,
-    accuracy_score, precision_score, recall_score, f1_score
+    confusion_matrix, roc_curve, auc, precision_recall_curve
 )
 import warnings
 import os
