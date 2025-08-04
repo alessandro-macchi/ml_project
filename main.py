@@ -17,7 +17,7 @@ def run_experiment(data, experiment_name=""):
     print(f"   Training samples: {len(X_train)}")
     print(f"   Test samples: {len(X_test)}")
 
-    # 2. MODEL TRAINING
+    # 2. MODEL TRAINING - To try different grids, chech models/model_training.py
     results, trained_models = train_all_models(X_train, y_train, X_test, y_test)
 
     # Print initial results

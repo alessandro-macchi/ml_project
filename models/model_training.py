@@ -6,7 +6,8 @@ from models.svm.kernel_svm import run_kernel_svm_experiment
 
 def get_parameter_grids():
     """
-    Choose different values for different models' hyperparameters
+    Choose different values for different models' hyperparameters.
+    To try different grids, just change the values here.
     """
     return {
         'lr': {
