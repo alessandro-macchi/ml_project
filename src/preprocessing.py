@@ -77,20 +77,23 @@ def preprocess_features(df: pd.DataFrame, apply_smote=False) -> tuple:
     """Preprocess wine dataset features and split into train/test sets."""
     df["quality_binary"] = (df["quality"] >= 6).astype(int)
 
-    # Log-transform skewed features BEFORE splitting
-    skewed_cols = ["residual sugar", "free sulfur dioxide", "total sulfur dioxide", "chlorides", "sulphates"]
-    df = log_transform(df, skewed_cols)
-
-    # Separate features and labels
+    # Separate features and labels before transformations
     X = df.drop(columns=["quality", "quality_binary"])
     y = df["quality_binary"].values
 
-    # Train-test split
+    # Train-test split first
     X_train, X_test, y_train, y_test = custom_train_test_split(
         X, y, test_size=0.2, random_state=6, stratify=y
     )
 
-    # Standardize AFTER split
+    # Log-transform skewed features AFTER splitting
+    skewed_cols = ["residual sugar", "free sulfur dioxide",
+                   "total sulfur dioxide", "chlorides", "sulphates"]
+
+    X_train = log_transform(X_train, skewed_cols)
+    X_test = log_transform(X_test, skewed_cols)
+
+    # Standardize AFTER log transform
     train_mean = X_train.mean()
     train_std = X_train.std()
 
@@ -99,24 +102,19 @@ def preprocess_features(df: pd.DataFrame, apply_smote=False) -> tuple:
 
     # Apply SMOTE-like oversampling
     if apply_smote:
-        # Identify minority and majority classes
         unique, counts = np.unique(y_train, return_counts=True)
         class_counts = dict(zip(unique, counts))
 
         majority_class = max(class_counts, key=class_counts.get)
         minority_class = min(class_counts, key=class_counts.get)
 
-        n_majority = class_counts[majority_class]
-        n_minority = class_counts[minority_class]
-        n_needed = n_majority - n_minority
+        n_needed = class_counts[majority_class] - class_counts[minority_class]
 
-        # Extract minority class samples
         X_minority = X_train[y_train == minority_class]
 
         synthetic_samples = generate_synthetic_samples(X_minority, N=n_needed, k=5)
         synthetic_labels = np.array([minority_class] * len(synthetic_samples))
 
-        # Combine with original data
         X_train = np.vstack([X_train, synthetic_samples])
         y_train = np.concatenate([y_train, synthetic_labels])
 
