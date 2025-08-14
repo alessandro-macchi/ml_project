@@ -18,38 +18,44 @@ class LogisticRegressionScratch:
                         1 / (1 + np.exp(-z)),
                         np.exp(z) / (1 + np.exp(z)))
 
-    def compute_loss(self, y_true, y_pred):
-        epsilon = 1e-9
-        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
-        bce_loss = -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+    def compute_loss(self, y_true, scores):
+        """Margin-based logistic loss for {-1, +1} labels"""
+        # Logistic loss: log(1 + exp(-y * score))
+        margins = -y_true * scores  # Negative margin
+        logistic_loss = np.mean(np.logaddexp(0, margins))
         reg_loss = self.lambda_ * np.sum(self.weights ** 2)
-        return bce_loss + reg_loss
+        return logistic_loss + reg_loss
 
     def fit(self, X, y):
         n_samples, n_features = X.shape
         self.weights = np.zeros(n_features)
         self.bias = 0
         self.losses = []
-        y = np.where(y == -1, 0, y)
 
         for epoch in range(self.epochs):
-            z = np.dot(X, self.weights) + self.bias
-            y_pred = self.sigmoid(z)
-            loss = self.compute_loss(y, y_pred)
+            scores = np.dot(X, self.weights) + self.bias
+            loss = self.compute_loss(y, scores)
             self.losses.append(loss)
-            dz = y_pred - y
-            dw = (1 / n_samples) * np.dot(X.T, dz) + (2 * self.lambda_ / n_samples) * self.weights
-            db = (1 / n_samples) * np.sum(dz)
+
+            # Gradient computation for margin-based loss
+            # ∂L/∂w = -X^T * (y * sigmoid(-y * scores)) + 2λw
+            margins = -y * scores
+            sigmoid_margins = self.sigmoid(margins)
+            gradient_factor = -y * sigmoid_margins
+
+            dw = (1 / n_samples) * np.dot(X.T, gradient_factor) + (2 * self.lambda_ / n_samples) * self.weights
+            db = (1 / n_samples) * np.sum(gradient_factor)
+
             self.weights -= self.learning_rate * dw
             self.bias -= self.learning_rate * db
 
     def predict_proba(self, X):
-        z = np.dot(X, self.weights) + self.bias
-        return self.sigmoid(z)
+        scores = np.dot(X, self.weights) + self.bias
+        return self.sigmoid(scores)
 
     def predict(self, X):
-        probas = self.predict_proba(X)
-        return np.where(probas >= 0.5, 1, 0)
+        scores = np.dot(X, self.weights) + self.bias
+        return np.where(scores >= 0, 1, -1)
 
 
 def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):

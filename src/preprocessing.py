@@ -75,7 +75,8 @@ def generate_synthetic_samples(X_minority_df, N, k=5):
 
 def preprocess_features(df: pd.DataFrame, apply_smote=False) -> tuple:
     """Preprocess wine dataset features and split into train/test sets."""
-    df["quality_binary"] = (df["quality"] >= 6).astype(int)
+    # Generate {-1, +1} labels instead of {0, 1}
+    df["quality_binary"] = np.where(df["quality"] >= 6, 1, -1)
 
     # Separate features and labels before transformations
     X = df.drop(columns=["quality", "quality_binary"])

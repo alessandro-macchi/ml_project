@@ -120,9 +120,6 @@ class KernelLogisticRegression:
         else:
             y = np.array(y)
 
-        # Convert labels to {-1, 1} format
-        y = np.where(y == 0, -1, y)
-
         # Subsample support vectors for efficiency
         self.X_support, support_indices = self._subsample_support_vectors(X)
         n_support = self.X_support.shape[0]
@@ -155,23 +152,20 @@ class KernelLogisticRegression:
 
                 # Forward pass
                 scores = K_batch @ self.alphas
-                probabilities = sigmoid(scores)
 
-                # Convert probabilities to {0,1} for loss computation
-                y_batch_01 = np.where(y_batch == -1, 0, 1)
-                probabilities = np.clip(probabilities, 1e-15, 1 - 1e-15)
-
-                # Compute loss
-                bce_loss = -np.mean(y_batch_01 * np.log(probabilities) +
-                                    (1 - y_batch_01) * np.log(1 - probabilities))
+                # Margin-based logistic loss for {-1, +1} labels
+                margins = -y_batch * scores
+                logistic_loss = np.mean(np.logaddexp(0, margins))
                 reg_loss = self.lambda_ * np.sum(self.alphas ** 2)
-                batch_loss = bce_loss + reg_loss
+                batch_loss = logistic_loss + reg_loss
+
                 epoch_loss += batch_loss
                 n_batches += 1
 
-                # Compute gradients
-                errors = probabilities - y_batch_01
-                gradients = K_batch.T @ errors / len(y_batch) + 2 * self.lambda_ * self.alphas
+                # Compute gradients for margin-based loss
+                sigmoid_margins = sigmoid(margins)
+                gradient_factor = -y_batch * sigmoid_margins
+                gradients = K_batch.T @ gradient_factor / len(y_batch) + 2 * self.lambda_ * self.alphas
 
                 # Adaptive learning rate
                 learning_rate = 0.01 / (1 + 0.001 * epoch)
@@ -221,8 +215,19 @@ class KernelLogisticRegression:
 
     def predict(self, X):
         """Predict class labels"""
-        probabilities = self.predict_proba(X)
-        return (probabilities >= 0.5).astype(int)
+        if self.alphas is None or self.X_support is None:
+            raise ValueError("Model must be fitted before prediction")
+
+        # Convert to numpy array if needed
+        if hasattr(X, 'values'):
+            X = X.values
+        else:
+            X = np.array(X)
+
+        # Compute kernel matrix between X and support vectors
+        K = self._compute_kernel_matrix(X, self.X_support)
+        scores = K @ self.alphas
+        return np.where(scores >= 0, 1, -1)
 
 
 def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):

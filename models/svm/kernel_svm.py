@@ -48,7 +48,7 @@ class KernelPegasosSVM:
 
         Args:
             X: Training data (n_samples, n_features)
-            y: Training labels {0, 1} (converted internally to {-1, +1})
+            y: Training labels {-1, +1}
             max_iter: Maximum number of iterations (overrides constructor)
         """
         if max_iter is not None:
@@ -65,10 +65,8 @@ class KernelPegasosSVM:
         else:
             y = np.array(y)
 
-        # Convert labels to {-1, +1} format required by SVM
-        y_transformed = np.where(y == 0, -1, y)
-
-        if set(np.unique(y_transformed)) != {-1, 1}:
+        # Labels are already in {-1, +1} format - no conversion needed!
+        if set(np.unique(y)) != {-1, 1}:
             raise ValueError("Pegasos requires binary classification with labels in {-1, 1}")
 
         n_samples = X.shape[0]
@@ -88,7 +86,7 @@ class KernelPegasosSVM:
             # Sample a random training example
             i = np.random.randint(0, n_samples)
             x_t = X[i]
-            y_t = y_transformed[i]  # Fixed: use correct label
+            y_t = y[i]  # Directly use the {-1, +1} label
 
             # Compute decision function value: f(x) = Σ αᵢ yᵢ K(xᵢ, x)
             if len(self.support_vectors) == 0:
@@ -205,20 +203,16 @@ class KernelPegasosSVM:
 
     def predict(self, X):
         """
-        Predict class labels for input samples.
+        Predict class labels.
 
         Args:
             X: Input samples (n_samples, n_features)
 
         Returns:
-            Predicted labels {0, 1} (converted from {-1, +1})
+            Predicted labels {-1, +1}
         """
         decision_values = self.decision_function(X)
-
-        # Convert {-1, +1} predictions back to {0, 1}
-        predictions = np.where(decision_values >= 0, 1, 0)
-
-        return predictions
+        return np.where(decision_values >= 0, 1, -1)  # Return {-1, +1} labels
 
     def predict_proba(self, X):
         """

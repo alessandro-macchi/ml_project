@@ -23,12 +23,10 @@ class SVMClassifierScratch:
         self.weights = np.zeros(n_features)
         self.bias = 0
 
-        y_transformed = np.where(y == 1, 1, -1)
-
         for t in range(1, max_iter + 1):
             i = np.random.randint(0, n_samples)
             x_i = X[i]
-            y_i = y_transformed[i]
+            y_i = y[i]
 
             eta = 1.0 / (self.lambda_ * t)
             condition = y_i * (np.dot(self.weights, x_i) + self.bias) < 1
@@ -42,8 +40,7 @@ class SVMClassifierScratch:
     def predict(self, X):
         X = np.array(X)
         scores = np.dot(X, self.weights) + self.bias
-        preds = np.where(scores >= 0, 1, 0)
-        return preds
+        return np.where(scores >= 0, 1, -1)  # Return {-1, +1} labels
 
 
 def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
