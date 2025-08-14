@@ -1,5 +1,5 @@
 from src.metrics import comprehensive_evaluation
-from src.hyperparameter_tuning import grid_search
+from src.grid_search import grid_search
 import numpy as np
 
 
