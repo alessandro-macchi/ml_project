@@ -1,0 +1,51 @@
+MODEL PERFORMANCE SUMMARY REPORT
+==================================================
+
+Generated on: 2025-08-14 22:13:11
+Models evaluated: 4
+Model names: Lr (Custom), Svm (Custom), Klr (Custom), Ksvm (Custom)
+
+BEST PERFORMERS:
+   Accuracy: Klr (Custom) (0.7327)
+   F1-Score: Klr (Custom) (0.7374)
+   Precision: Klr (Custom) (0.7613)
+   Recall: Klr (Custom) (0.7327)
+   ROC-AUC: Klr (Custom) (0.8192)
+   PR-AUC: Klr (Custom) (0.8811)
+
+OVERALL RANKING (by average score):
+   1. Klr (Custom): 0.7410
+   2. Lr (Custom): 0.7376
+   3. Ksvm (Custom): 0.7341
+   4. Svm (Custom): 0.7116
+
+DETAILED METRICS:
+------------------------------
+
+Lr (Custom):
+   Accuracy: 0.7304
+   Balanced Accuracy: 0.7389
+   Precision: 0.7546
+   Recall: 0.7304
+   F1-Score: 0.7350
+
+Svm (Custom):
+   Accuracy: 0.6995
+   Balanced Accuracy: 0.7203
+   Precision: 0.7426
+   Recall: 0.6995
+   F1-Score: 0.7048
+
+Klr (Custom):
+   Accuracy: 0.7327
+   Balanced Accuracy: 0.7452
+   Precision: 0.7613
+   Recall: 0.7327
+   F1-Score: 0.7374
+
+Ksvm (Custom):
+   Accuracy: 0.7265
+   Balanced Accuracy: 0.7359
+   Precision: 0.7521
+   Recall: 0.7265
+   F1-Score: 0.7313
