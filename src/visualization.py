@@ -841,7 +841,6 @@ class ModelVisualizer:
             print(f"⚠️ Could not save summary report: {e}")
 
 
-# Convenience functions for easy integration
 def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True, save_dir='output/evaluation_plots'):
     """
     Convenience function to create all visualizations with minimal setup
@@ -875,120 +874,6 @@ def create_model_visualizations(models_dict, results_dict, X_test, y_test, model
 
     # Generate all plots
     visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
-
-    return visualizer
-
-
-def quick_model_comparison(model_results, X_test, y_test, save_plots=True, save_dir='output/evaluation_plots'):
-    """
-    Quick comparison function that works with just results (no model objects needed)
-
-    Args:
-        model_results (dict): Dictionary of evaluation results
-        X_test: Test features (for generating synthetic predictions)
-        y_test: Test labels
-        save_plots (bool): Whether to save plots (default: True)
-        save_dir (str): Directory to save plots (default: 'evaluation_plots')
-    """
-    print("🚀 Quick Model Comparison (Results Only)")
-    print("=" * 50)
-
-    # Create synthetic models for visualization
-    class SyntheticModel:
-        def __init__(self, accuracy, model_name):
-            self.accuracy = accuracy
-            self.model_name = model_name
-            self.losses = self._generate_synthetic_losses()
-
-        def _generate_synthetic_losses(self):
-            """Generate realistic loss curve based on final accuracy"""
-            epochs = 150
-            initial_loss = np.random.uniform(2.0, 2.8)
-            final_loss = max(0.1, -np.log(max(self.accuracy, 0.1)) * 0.7)
-
-            losses = []
-            for epoch in range(1, epochs + 1):
-                loss = final_loss + (initial_loss - final_loss) * np.exp(-0.025 * epoch)
-                loss += np.random.normal(0, 0.015)  # Add noise
-                loss = max(loss, 0.05)  # Ensure positive
-                losses.append(loss)
-            return losses
-
-        def predict(self, X):
-            """Generate predictions based on accuracy"""
-            n_samples = len(X)
-            n_correct = int(self.accuracy * n_samples)
-
-            # Create realistic predictions
-            predictions = np.zeros(n_samples)
-            correct_indices = np.random.choice(n_samples, n_correct, replace=False)
-            predictions[correct_indices] = y_test[correct_indices]
-
-            # For incorrect predictions, use opposite class
-            incorrect_indices = np.setdiff1d(np.arange(n_samples), correct_indices)
-            predictions[incorrect_indices] = 1 - y_test[incorrect_indices]
-
-            return predictions.astype(int)
-
-        def predict_proba(self, X):
-            """Generate probabilities based on predictions"""
-            preds = self.predict(X)
-            # Add uncertainty around the predictions
-            probabilities = preds.astype(float) + np.random.normal(0, 0.1, len(preds))
-            return np.clip(probabilities, 0, 1)
-
-    # Create visualizer and add synthetic models
-    visualizer = ModelVisualizer(save_dir=save_dir)
-
-    name_mapping = {
-        'lr_custom': 'Logistic Regression',
-        'svm_custom': 'Linear SVM',
-        'klr_custom': 'Kernel Logistic Regression',
-        'ksvm_custom': 'Kernel SVM'
-    }
-
-    for model_key, results in model_results.items():
-        if 'accuracy' in results:
-            model_name = name_mapping.get(model_key, model_key.replace('_', ' ').title())
-            synthetic_model = SyntheticModel(results['accuracy'], model_name)
-
-            visualizer.add_model_results(model_key, synthetic_model, results, model_name)
-
-    # Generate visualizations
-    visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
-
-    return visualizer
-
-
-# Integration functions for your existing project structure
-def integrate_with_experiment_results(experiment_results, X_test, y_test, save_plots=True, save_dir='output/evaluation_plots'):
-    """
-    Integration function specifically designed for your project structure
-
-    This function takes the results from your run_experiment function and creates visualizations
-
-    Args:
-        experiment_results (dict): Results from your run_experiment function
-        X_test: Test features
-        y_test: Test labels
-        save_plots (bool): Whether to save plots (default: True)
-        save_dir (str): Directory to save plots (default: 'evaluation_plots')
-    """
-    print("\n🎨 CREATING VISUALIZATIONS FROM EXPERIMENT RESULTS")
-    print("=" * 60)
-
-    # Filter valid results (those with accuracy metrics)
-    valid_results = {}
-    for model_key, metrics in experiment_results.items():
-        if isinstance(metrics, dict) and 'accuracy' in metrics:
-            valid_results[model_key] = metrics
-
-    if not valid_results:
-        print("❌ No valid model results found for visualization")
-        return None
-
-    # Use quick comparison for results-only visualization
-    visualizer = quick_model_comparison(valid_results, X_test, y_test, save_plots=save_plots, save_dir=save_dir)
 
     return visualizer
 

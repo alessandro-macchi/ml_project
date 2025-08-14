@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from src.visualization import integrate_with_experiment_results
+from src.visualization import create_model_visualizations
 from src.misclassification_analysis import MisclassificationAnalyzer
 from src.overfitting_analysis import integrate_overfitting_analysis
 from src.save import save_results
@@ -27,7 +27,7 @@ def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test
     save_results(results, experiment_name)
 
     # Standard visualizations - save to evaluation_plots
-    run_visualizations(results, X_test, y_test)
+    run_visualizations(results, trained_models, X_test, y_test)
 
     # Misclassification analysis - ensure consistent directory usage
     misclassification_analyzer = run_misclassification_analysis(trained_models, X_test, y_test)
@@ -38,13 +38,13 @@ def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test
     return misclassification_analyzer, overfitting_analyzer
 
 
-def run_visualizations(results, X_test, y_test):
+def run_visualizations(results, trained_models, X_test, y_test):
     """Generate standard performance visualizations"""
     print(f"\n{'=' * 70}")
     print("🎨 GENERATING PERFORMANCE VISUALIZATIONS")
     print(f"{'=' * 70}")
 
-    visualizer = integrate_with_experiment_results(results, X_test, y_test)
+    visualizer = create_model_visualizations(trained_models, results, X_test, y_test)
     return visualizer
 
 
