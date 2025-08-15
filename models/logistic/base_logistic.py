@@ -37,7 +37,6 @@ class LogisticRegressionScratch:
             loss = self.compute_loss(y, scores)
             self.losses.append(loss)
 
-            # Gradient computation for margin-based loss
             # ∂L/∂w = -X^T * (y * sigmoid(-y * scores)) + 2λw
             margins = -y * scores
             sigmoid_margins = self.sigmoid(margins)
