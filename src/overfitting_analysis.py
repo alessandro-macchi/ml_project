@@ -1,22 +1,26 @@
 """
-Overfitting and Underfitting Analysis Module - FIXED VERSION
+Overfitting and Underfitting Analysis Module - ENVIRONMENT INTEGRATED VERSION
 
 This module provides comprehensive analysis to detect and visualize overfitting and underfitting
 in machine learning models. It analyzes training vs validation performance, learning curves,
 and provides recommendations for model improvement.
 
-FIXES:
-- Proper directory creation and path handling
-- Fixed saving mechanism to ensure plots are saved before showing
-- Added verbose logging for debugging save operations
-- Improved error handling for file operations
+INTEGRATION FEATURES:
+- Uses centralized directory management from src.save
+- Consistent with existing visualization patterns
+- Proper error handling and logging
+- Works with existing model structure
 
 Usage:
-    from src.overfitting_analysis import OverfittingAnalyzer
+    from src.overfitting_analysis import OverfittingAnalyzer, integrate_overfitting_analysis
 
+    # Direct usage
     analyzer = OverfittingAnalyzer()
     analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test)
     analyzer.create_comprehensive_analysis(save_plots=True)
+
+    # Integrated usage (recommended)
+    analyzer = integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test)
 """
 
 import numpy as np
@@ -26,6 +30,7 @@ import seaborn as sns
 from sklearn.metrics import accuracy_score, f1_score
 import warnings
 import os
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -37,9 +42,33 @@ sns.set_palette("husl")
 class OverfittingAnalyzer:
     """
     Comprehensive overfitting and underfitting analysis for machine learning models
+    with integrated directory management
     """
 
-    def __init__(self):
+    def __init__(self, save_dir=None):
+        """
+        Initialize analyzer with optional directory override
+
+        Args:
+            save_dir (str): Directory to save plots (if None, uses centralized manager)
+        """
+        if save_dir is None:
+            # Use centralized directory manager
+            try:
+                from src.save import get_directory_manager
+                dir_manager = get_directory_manager()
+                self.save_dir = dir_manager.plots_dir
+                print(f"📁 Using centralized plots directory: {self.save_dir}")
+            except ImportError:
+                # Fallback to default behavior
+                self.save_dir = "output/evaluation_plots"
+                os.makedirs(self.save_dir, exist_ok=True)
+                print(f"📁 Using fallback directory: {self.save_dir}")
+        else:
+            self.save_dir = save_dir
+            os.makedirs(self.save_dir, exist_ok=True)
+            print(f"📁 Using provided directory: {self.save_dir}")
+
         self.models = {}
         self.analysis_results = {}
         self.X_train = None
@@ -68,9 +97,9 @@ class OverfittingAnalyzer:
         self.X_test = np.array(X_test)
         self.y_test = np.array(y_test)
 
-        # Add models
+        # Add models with proper naming
         for model_key, model in models_dict.items():
-            model_name = model_names.get(model_key) if model_names else None
+            model_name = self._get_model_display_name(model_key, model_names)
             self.add_model_analysis(model_key, model, model_name)
 
         # Analyze each model
@@ -80,11 +109,25 @@ class OverfittingAnalyzer:
 
         print("\n✅ Overfitting/Underfitting analysis complete!")
 
+    def _get_model_display_name(self, model_key, model_names):
+        """Get display name for model with fallback logic"""
+        if model_names and model_key in model_names:
+            return model_names[model_key]
+
+        # Default naming logic consistent with the environment
+        name_mapping = {
+            'lr_custom': 'Logistic Regression (Custom)',
+            'svm_custom': 'Linear SVM (Custom)',
+            'klr_custom': 'Kernel Logistic Regression (Custom)',
+            'ksvm_custom': 'Kernel SVM (Custom)'
+        }
+        return name_mapping.get(model_key, model_key.replace('_', ' ').title())
+
     def add_model_analysis(self, model_key, model, model_name=None):
         """Add a model for analysis"""
         self.models[model_key] = {
             'model': model,
-            'name': model_name or model_key.replace('_', ' ').title()
+            'name': model_name or self._get_model_display_name(model_key, None)
         }
 
     def _analyze_single_model(self, model_key):
@@ -214,9 +257,6 @@ class OverfittingAnalyzer:
         try:
             print(f"     📈 Generating learning curves...")
 
-            # Create a wrapper for models that need special handling
-            model_wrapper = self._create_model_wrapper(model_key, model)
-
             # Generate learning curve data
             train_sizes = np.linspace(0.1, 1.0, 10)
 
@@ -241,11 +281,7 @@ class OverfittingAnalyzer:
                 try:
                     subset_model = self._create_fresh_model(model_key, model)
                     if hasattr(subset_model, 'fit'):
-                        if 'svm' in model_key.lower() and hasattr(subset_model, 'fit'):
-                            # SVM models need max_iter parameter
-                            subset_model.fit(X_subset, y_subset, max_iter=min(1000, len(y_subset) * 2))
-                        else:
-                            subset_model.fit(X_subset, y_subset)
+                        subset_model.fit(X_subset, y_subset)
 
                     # Evaluate on training subset and validation set
                     train_pred = subset_model.predict(X_subset)
@@ -277,62 +313,44 @@ class OverfittingAnalyzer:
             print(f"     ⚠️ Learning curve generation failed: {e}")
             return {'available': False, 'error': str(e)}
 
-    def _create_model_wrapper(self, model_key, original_model):
-        """Create a wrapper for models that work with sklearn learning_curve"""
-
-        class ModelWrapper:
-            def __init__(self, original_model, model_key):
-                self.original_model = original_model
-                self.model_key = model_key
-
-            def fit(self, X, y):
-                if 'svm' in self.model_key.lower():
-                    self.original_model.fit(X, y, max_iter=1000)
-                else:
-                    self.original_model.fit(X, y)
-                return self
-
-            def predict(self, X):
-                return self.original_model.predict(X)
-
-            def score(self, X, y):
-                predictions = self.predict(X)
-                return accuracy_score(y, predictions)
-
-        return ModelWrapper(original_model, model_key)
-
     def _create_fresh_model(self, model_key, original_model):
         """Create a fresh instance of the model with same parameters"""
-        if 'lr' in model_key.lower():
-            from models.logistic.base_logistic import LogisticRegressionScratch
-            return LogisticRegressionScratch(
-                learning_rate=getattr(original_model, 'learning_rate', 0.1),
-                regularization_strength=getattr(original_model, 'lambda_', 0.01),
-                epochs=getattr(original_model, 'epochs', 1000)
-            )
-        elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
-            from models.svm.base_svm import SVMClassifierScratch
-            return SVMClassifierScratch(
-                lambda_=getattr(original_model, 'lambda_', 0.01)
-            )
-        elif 'klr' in model_key.lower():
-            from models.logistic.kernel_logistic import KernelLogisticRegression
-            return KernelLogisticRegression(
-                kernel=getattr(original_model, 'kernel', None),
-                lambda_=getattr(original_model, 'lambda_', 0.01),
-                epochs=min(500, getattr(original_model, 'epochs', 500)),  # Reduce epochs for speed
-                subsample_ratio=0.1,  # Use smaller subset for learning curves
-                batch_size=32
-            )
-        elif 'ksvm' in model_key.lower():
-            from models.svm.base_svm import KernelPegasosSVM
-            return KernelPegasosSVM(
-                kernel=getattr(original_model, 'kernel', None),
-                lambda_=getattr(original_model, 'lambda_', 0.01),
-                max_iter=min(500, getattr(original_model, 'max_iter', 500))  # Reduce iterations for speed
-            )
-        else:
-            # Fallback - try to copy the original model
+        try:
+            # Import models from the existing structure
+            if 'lr' in model_key.lower():
+                from models.logistic.base_logistic import LogisticRegressionScratch
+                return LogisticRegressionScratch(
+                    learning_rate=getattr(original_model, 'learning_rate', 0.1),
+                    regularization_strength=getattr(original_model, 'lambda_', 0.01),
+                    epochs=min(500, getattr(original_model, 'epochs', 1000))  # Reduce for speed
+                )
+            elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
+                from models.svm.base_svm import SVMClassifierScratch
+                return SVMClassifierScratch(
+                    lambda_=getattr(original_model, 'lambda_', 0.01)
+                )
+            elif 'klr' in model_key.lower():
+                from models.logistic.kernel_logistic import KernelLogisticRegression
+                return KernelLogisticRegression(
+                    kernel=getattr(original_model, 'kernel', None),
+                    lambda_=getattr(original_model, 'lambda_', 0.01),
+                    epochs=min(200, getattr(original_model, 'epochs', 500)),  # Reduce for speed
+                    subsample_ratio=0.1,  # Use smaller subset for learning curves
+                    batch_size=32
+                )
+            elif 'ksvm' in model_key.lower():
+                from models.svm.base_svm import KernelPegasosSVM
+                return KernelPegasosSVM(
+                    kernel=getattr(original_model, 'kernel', None),
+                    lambda_=getattr(original_model, 'lambda_', 0.01),
+                    max_iter=min(200, getattr(original_model, 'max_iter', 500))  # Reduce for speed
+                )
+            else:
+                # Fallback - return original model (may not work for learning curves)
+                print(f"     ⚠️ Unknown model type {model_key}, using original")
+                return original_model
+        except ImportError as e:
+            print(f"     ⚠️ Could not import model for {model_key}: {e}")
             return original_model
 
     def _analyze_model_complexity(self, model_key, model):
@@ -534,57 +552,30 @@ class OverfittingAnalyzer:
             for indicator in diagnosis['indicators'][:3]:  # Show top 3
                 print(f"         • {indicator}")
 
-    def _ensure_directory_exists(self, directory_path):
-        """Ensure directory exists and log the operation"""
+    def _save_plot_safely(self, filename, dpi=300, bbox_inches='tight'):
+        """Save plot with timestamp and proper error handling"""
         try:
-            os.makedirs(directory_path, exist_ok=True)
-            print(f"   📁 Directory ensured: {os.path.abspath(directory_path)}")
-            return True
+            # Add timestamp to avoid conflicts
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            full_filename = f"{filename}_{timestamp}.png"
+            filepath = os.path.join(self.save_dir, full_filename)
+
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
+                       facecolor='white', edgecolor='none')
+            print(f"   💾 Saved: {filepath}")
+            return filepath
         except Exception as e:
-            print(f"   ❌ Error creating directory {directory_path}: {e}")
-            return False
+            print(f"   ❌ Error saving {filename}: {e}")
+            return None
 
-    def _save_plot_safely(self, figure, filepath, dpi=300):
-        """Save plot with proper error handling and logging"""
-        try:
-            # Ensure the directory exists
-            directory = os.path.dirname(filepath)
-            if not self._ensure_directory_exists(directory):
-                return False
-
-            # Get absolute path for logging
-            abs_filepath = os.path.abspath(filepath)
-
-            # Save the figure
-            figure.savefig(filepath, dpi=dpi, bbox_inches='tight', facecolor='white')
-
-            # Verify file was created
-            if os.path.exists(filepath):
-                file_size = os.path.getsize(filepath)
-                print(f"   ✅ Plot saved successfully: {abs_filepath} ({file_size} bytes)")
-                return True
-            else:
-                print(f"   ❌ Plot file was not created: {abs_filepath}")
-                return False
-
-        except Exception as e:
-            print(f"   ❌ Error saving plot to {filepath}: {e}")
-            return False
-
-    def plot_fitting_analysis(self, figsize=(20, 15), save_plots=False, save_dir='output/evaluation_plots'):
-        """Create comprehensive fitting analysis visualizations with fixed saving"""
+    def plot_fitting_analysis(self, figsize=(20, 15), save_plots=False):
+        """Create comprehensive fitting analysis visualizations"""
 
         print("📊 Creating Overfitting/Underfitting Analysis Plots...")
 
         if not self.analysis_results:
             print("❌ No analysis data available")
             return
-
-        # Create save directory if needed and log it
-        if save_plots:
-            if not self._ensure_directory_exists(save_dir):
-                print("❌ Failed to create save directory, disabling save_plots")
-                save_plots = False
 
         n_models = len(self.analysis_results)
 
@@ -813,25 +804,16 @@ class OverfittingAnalyzer:
                      fontsize=16, fontweight='bold', y=0.98)
         plt.tight_layout()
 
-        # Save plot BEFORE showing it if requested
+        # Save plot if requested
         if save_plots:
-            filename = os.path.join(save_dir, 'overfitting_analysis_comprehensive.png')
-            if self._save_plot_safely(fig, filename):
-                print(f"   💾 Comprehensive analysis plot saved successfully")
-            else:
-                print(f"   ❌ Failed to save comprehensive analysis plot")
+            self._save_plot_safely('overfitting_analysis_comprehensive')
 
         plt.show()
 
-    def plot_detailed_learning_curves(self, figsize=(16, 12), save_plots=False, save_dir='output/evaluation_plots'):
-        """Create detailed learning curves for all models with fixed saving"""
+    def plot_detailed_learning_curves(self, figsize=(16, 12), save_plots=False):
+        """Create detailed learning curves for all models"""
 
         print("📈 Creating Detailed Learning Curves...")
-
-        if save_plots:
-            if not self._ensure_directory_exists(save_dir):
-                print("❌ Failed to create save directory, disabling save_plots")
-                save_plots = False
 
         # Filter models with learning curve data
         models_with_curves = {
@@ -907,17 +889,6 @@ class OverfittingAnalyzer:
                         bbox=dict(boxstyle='round', facecolor=gap_color, alpha=0.3),
                         fontsize=10, fontweight='bold')
 
-                # Convergence information
-                train_trend = np.polyfit(train_sizes[-3:], train_scores[-3:], 1)[0] if len(train_sizes) >= 3 else 0
-                val_trend = np.polyfit(train_sizes[-3:], val_scores[-3:], 1)[0] if len(train_sizes) >= 3 else 0
-
-                convergence_status = "Converging" if abs(train_trend) < 0.001 and abs(
-                    val_trend) < 0.001 else "Still Learning"
-                ax.text(0.02, 0.02, f'Status: {convergence_status}',
-                        transform=ax.transAxes, verticalalignment='bottom',
-                        bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
-                        fontsize=9)
-
         # Hide unused subplots
         for i in range(len(models_with_curves), len(axes)):
             if i < len(axes):
@@ -926,13 +897,9 @@ class OverfittingAnalyzer:
         plt.tight_layout()
         plt.suptitle('Detailed Learning Curves Analysis', fontsize=16, fontweight='bold', y=1.02)
 
-        # Save plot BEFORE showing it if requested
+        # Save plot if requested
         if save_plots:
-            filename = os.path.join(save_dir, 'learning_curves_detailed.png')
-            if self._save_plot_safely(fig, filename):
-                print(f"   💾 Detailed learning curves plot saved successfully")
-            else:
-                print(f"   ❌ Failed to save detailed learning curves plot")
+            self._save_plot_safely('learning_curves_detailed')
 
         plt.show()
 
@@ -1001,131 +968,24 @@ class OverfittingAnalyzer:
                 for indicator in diagnosis['indicators']:
                     print(f"      • {indicator}")
 
-            # Training curve analysis
-            training_curves = analysis['training_curves']
-            if training_curves['available']:
-                if training_curves.get('converged', False):
-                    print(f"   Training: ✅ Converged after {training_curves['epochs_trained']} epochs")
-                else:
-                    print(f"   Training: ⚠️ May need more epochs ({training_curves['epochs_trained']} completed)")
-
-                improvement = training_curves.get('improvement_ratio', 0)
-                print(f"   Learning progress: {improvement:.1%} improvement from start to finish")
-
-            # Learning curve analysis
-            learning_curves = analysis['learning_curves']
-            if learning_curves['available']:
-                final_gap = learning_curves.get('gap_at_end', 0)
-                if final_gap > 0.1:
-                    print(f"   Learning curve: 🔴 Shows overfitting (final gap: {final_gap:.3f})")
-                elif final_gap > 0.05:
-                    print(f"   Learning curve: 🟡 Shows moderate overfitting (final gap: {final_gap:.3f})")
-                else:
-                    print(f"   Learning curve: 🟢 Shows good generalization (final gap: {final_gap:.3f})")
-
-            # Complexity analysis
-            complexity = analysis['complexity_analysis']
-            samples_to_features = complexity.get('samples_to_features_ratio', 1)
-            print(f"   Data complexity: {samples_to_features:.1f} samples per feature")
-
-            if 'n_support_vectors' in complexity:
-                sv_ratio = complexity['support_vector_ratio']
-                print(
-                    f"   Model complexity: {complexity['n_support_vectors']} support vectors ({sv_ratio:.1%} of training data)")
-            elif 'weight_magnitude' in complexity:
-                print(f"   Model complexity: Weight magnitude = {complexity['weight_magnitude']:.3f}")
-
-        # Recommendations section
-        print(f"\n💡 RECOMMENDATIONS BY FITTING STATUS:")
-        print("-" * 45)
-
-        # Group models by status
-        status_groups = {}
-        for model_key, analysis in self.analysis_results.items():
-            status = analysis['fitting_diagnosis']['fitting_status']
-            if status not in status_groups:
-                status_groups[status] = []
-            status_groups[status].append(analysis['model_name'])
-
-        for status, models in status_groups.items():
-            status_emoji = {'overfitting': '🔴', 'underfitting': '🟡', 'good_fit': '🟢', 'inconclusive': '⚪'}.get(status,
-                                                                                                               '⚪')
-            print(f"\n{status_emoji} {status.upper()} Models: {', '.join(models)}")
-
-            if status == 'overfitting':
-                print("   Recommended actions:")
-                print("   • Increase regularization strength (λ)")
-                print("   • Reduce model complexity")
-                print("   • Collect more training data")
-                print("   • Use cross-validation for model selection")
-                print("   • Apply early stopping during training")
-                print("   • Consider ensemble methods to reduce variance")
-
-            elif status == 'underfitting':
-                print("   Recommended actions:")
-                print("   • Decrease regularization strength")
-                print("   • Increase model complexity")
-                print("   • Add more features or feature engineering")
-                print("   • Train for more epochs/iterations")
-                print("   • Try different model architectures")
-                print("   • Check for data quality issues")
-
-            elif status == 'good_fit':
-                print("   Recommended actions:")
-                print("   • Model appears well-fitted - good job!")
-                print("   • Consider ensemble methods for marginal improvements")
-                print("   • Validate performance on additional test sets")
-                print("   • Monitor performance in production")
-
-            elif status == 'inconclusive':
-                print("   Recommended actions:")
-                print("   • Collect more training data for clearer analysis")
-                print("   • Run longer training sessions")
-                print("   • Use more sophisticated validation techniques")
-
-        # General recommendations
-        print(f"\n🎯 GENERAL RECOMMENDATIONS:")
-        print("-" * 30)
-
-        high_gap_models = [
-            analysis['model_name'] for analysis in self.analysis_results.values()
-            if (analysis['train_performance']['accuracy'] - analysis['test_performance']['accuracy']) > 0.1
-        ]
-
-        low_performance_models = [
-            analysis['model_name'] for analysis in self.analysis_results.values()
-            if analysis['test_performance']['accuracy'] < 0.7
-        ]
-
-        if high_gap_models:
-            print(f"   📊 Models with high train-test gaps: {', '.join(high_gap_models)}")
-            print("      → Focus on regularization and data collection")
-
-        if low_performance_models:
-            print(f"   📈 Models with low overall performance: {', '.join(low_performance_models)}")
-            print("      → Consider feature engineering and model complexity increases")
-
-        if avg_gap > 0.1:
-            print("   🔴 Overall high overfitting tendency detected")
-            print("      → Consider increasing regularization across all models")
-            print("      → Evaluate if more training data is needed")
-        elif avg_gap < 0.02:
-            print("   🟢 Good generalization across models")
-            print("      → Consider ensemble methods for further improvements")
-
         print(f"\n✅ Analysis complete! Use visualizations for detailed insights.")
 
-    def export_analysis_results(self, filename="overfitting_analysis.csv", results_dir="output/results"):
-        """Export analysis results to CSV in specified results directory with improved error handling"""
+    def export_analysis_results(self, filename="overfitting_analysis.csv", results_dir=None):
+        """Export analysis results to CSV"""
 
         if not self.analysis_results:
             print("❌ No analysis data available")
             return None
 
-        # Create results directory with logging
-        if not self._ensure_directory_exists(results_dir):
-            print(f"❌ Failed to create results directory: {results_dir}")
-            return None
+        # Use centralized directory management if no specific dir provided
+        if results_dir is None:
+            try:
+                from src.save import get_directory_manager
+                dir_manager = get_directory_manager()
+                results_dir = dir_manager.results_dir
+            except ImportError:
+                results_dir = "output/results"
+                os.makedirs(results_dir, exist_ok=True)
 
         full_path = os.path.join(results_dir, filename)
 
@@ -1193,9 +1053,8 @@ class OverfittingAnalyzer:
             print(f"❌ Error exporting analysis results: {e}")
             return None
 
-    def create_comprehensive_analysis(self, figsize_1=(20, 15), figsize_2=(16, 12),
-                                      save_plots=False, plots_dir='output/evaluation_plots', results_dir='output/results'):
-        """Create all analysis visualizations and reports with explicit directory control and improved logging"""
+    def create_comprehensive_analysis(self, figsize_1=(20, 15), figsize_2=(16, 12), save_plots=False):
+        """Create all analysis visualizations and reports"""
 
         print("\n🎨 CREATING COMPREHENSIVE OVERFITTING/UNDERFITTING ANALYSIS")
         print("=" * 75)
@@ -1205,45 +1064,31 @@ class OverfittingAnalyzer:
             return
 
         if save_plots:
-            # Ensure both directories exist
-            plots_success = self._ensure_directory_exists(plots_dir)
-            results_success = self._ensure_directory_exists(results_dir)
+            print(f"💾 Plots will be saved to: {os.path.abspath(self.save_dir)}")
 
-            if not plots_success or not results_success:
-                print("❌ Failed to create required directories, disabling save_plots")
-                save_plots = False
-            else:
-                print(f"📁 Plots will be saved to: {os.path.abspath(plots_dir)}/")
-                print(f"📁 Results will be saved to: {os.path.abspath(results_dir)}/")
-
-        # Generate visualizations - all go to plots_dir
+        # Generate visualizations
         print("\n🎨 Generating comprehensive fitting analysis plots...")
-        self.plot_fitting_analysis(figsize_1, save_plots, plots_dir)
+        self.plot_fitting_analysis(figsize_1, save_plots)
 
         print("\n📈 Generating detailed learning curves...")
-        self.plot_detailed_learning_curves(figsize_2, save_plots, plots_dir)
+        self.plot_detailed_learning_curves(figsize_2, save_plots)
 
         # Generate detailed report
         print("\n📋 Generating comprehensive text report...")
         self.generate_comprehensive_report()
 
-        # Export results to results_dir
+        # Export results
         if save_plots:
             print("\n💾 Exporting analysis results to CSV...")
-            self.export_analysis_results("overfitting_analysis.csv", results_dir)
-
-        if save_plots:
-            print(f"\n💾 All plots saved to: {os.path.abspath(plots_dir)}/")
-            print(f"💾 All results saved to: {os.path.abspath(results_dir)}/")
+            self.export_analysis_results("overfitting_analysis.csv")
 
         print(f"\n🎉 Comprehensive overfitting/underfitting analysis complete!")
 
 
-# Update the integration function
 def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
-                                   save_plots=False, plots_dir="output/evaluation_plots", results_dir="output/results"):
+                                   save_plots=True, save_dir=None):
     """
-    Integration function for existing project structure with improved error handling
+    Integration function for existing project structure
 
     Args:
         models_dict (dict): Dictionary of trained models
@@ -1251,8 +1096,7 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
         X_test, y_test: Test data
         model_names (dict): Optional display names for models
         save_plots (bool): Whether to save plots and results
-        plots_dir (str): Directory for plots
-        results_dir (str): Directory for CSV files
+        save_dir (str): Directory to save plots (if None, uses centralized manager)
 
     Returns:
         OverfittingAnalyzer: Analyzer with complete analysis
@@ -1260,24 +1104,13 @@ def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test
     print("🔗 INTEGRATING OVERFITTING ANALYSIS WITH EXISTING MODELS")
     print("=" * 65)
 
-    # Default model names
-    default_names = {
-        'lr_custom': 'Logistic Regression (Custom)',
-        'svm_custom': 'Linear SVM (Custom)',
-        'klr_custom': 'Kernel Logistic Regression (Custom)',
-        'ksvm_custom': 'Kernel SVM (Custom)'
-    }
-
-    if model_names is None:
-        model_names = default_names
-
-    # Create analyzer
-    analyzer = OverfittingAnalyzer()
+    # Create analyzer with centralized directory management
+    analyzer = OverfittingAnalyzer(save_dir=save_dir)
 
     # Run analysis
     analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test, model_names)
 
-    # Create comprehensive analysis with explicit directory control
-    analyzer.create_comprehensive_analysis(save_plots=save_plots, plots_dir=plots_dir, results_dir=results_dir)
+    # Create comprehensive analysis
+    analyzer.create_comprehensive_analysis(save_plots=save_plots)
 
     return analyzer

@@ -5,7 +5,8 @@ Key improvements:
 1. Better SVM probability handling for confidence analysis
 2. Robust decision function to probability conversion
 3. Graceful handling when confidence analysis isn't suitable
-4. All reports saved to output/results directory
+4. All reports saved to centralized timestamp-based directories
+5. Centralized directory management integration
 """
 
 import numpy as np
@@ -15,6 +16,7 @@ import seaborn as sns
 from scipy import stats
 import warnings
 import os
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -28,22 +30,40 @@ class MisclassificationAnalyzer:
     Comprehensive misclassification analysis for understanding model limitations
     """
 
-    def __init__(self, save_dir="output/evaluation_plots"):
+    def __init__(self, save_dir=None):
         """
         Initialize the misclassification analyzer
 
         Args:
-            save_dir (str): Directory to save analysis plots
+            save_dir (str): Directory to save analysis plots (if None, uses centralized manager)
         """
-        self.save_dir = save_dir
+        if save_dir is None:
+            # Use centralized directory manager
+            try:
+                from src.save import get_directory_manager
+                dir_manager = get_directory_manager()
+                self.save_dir = dir_manager.plots_dir
+                self.results_dir = dir_manager.results_dir
+                print(f"📁 Using centralized directories:")
+                print(f"   Plots: {self.save_dir}")
+                print(f"   Results: {self.results_dir}")
+            except ImportError:
+                # Fallback to default behavior
+                self.save_dir = "output/evaluation_plots"
+                self.results_dir = "output/results"
+                os.makedirs(self.save_dir, exist_ok=True)
+                os.makedirs(self.results_dir, exist_ok=True)
+        else:
+            self.save_dir = save_dir
+            self.results_dir = os.path.join(os.path.dirname(save_dir), "results")
+            os.makedirs(self.save_dir, exist_ok=True)
+            os.makedirs(self.results_dir, exist_ok=True)
+
         self.models = {}
         self.misclassified_data = {}
         self.feature_names = None
         self.X_test = None
         self.y_test = None
-
-        # Create save directory if it doesn't exist
-        os.makedirs(save_dir, exist_ok=True)
 
     def add_model_analysis(self, model_key, model, model_name=None):
         """
@@ -172,28 +192,7 @@ class MisclassificationAnalyzer:
                 else:
                     print(f"   ⚠️ Unexpected decision_function shape for {model_key}: {decision_scores.shape}")
 
-            # Try custom model attributes that might contain scores
-            if hasattr(model, 'decision_scores') and model.decision_scores is not None:
-                scores = model.decision_scores
-                if hasattr(scores, '__len__') and len(scores) == len(self.X_test):
-                    probabilities = self._sigmoid(np.array(scores))
-                    print(f"   📊 {model_key}: Using custom decision_scores → sigmoid conversion")
-                    return probabilities
-
-            # For custom models that might store probabilities differently
-            if hasattr(model, 'predict_scores'):
-                try:
-                    scores = model.predict_scores(self.X_test)
-                    probabilities = self._sigmoid(np.array(scores))
-                    print(f"   📊 {model_key}: Using custom predict_scores → sigmoid conversion")
-                    return probabilities
-                except:
-                    pass
-
-            # Last resort: try to calibrate the model
             print(f"   ⚠️ {model_key}: No direct probability method available")
-            print(f"       Available methods: {[attr for attr in dir(model) if 'predict' in attr.lower() or 'decision' in attr.lower()]}")
-
             return None
 
         except Exception as e:
@@ -411,6 +410,20 @@ class MisclassificationAnalyzer:
             reason = conf_analysis.get('reason', 'Unknown')
             print(f"      Confidence analysis: Not available ({reason})")
 
+    def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
+        """Save figure with timestamp to avoid conflicts"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"{filename}_{timestamp}.png"
+        filepath = os.path.join(self.save_dir, full_filename)
+
+        try:
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches, facecolor='white')
+            print(f"   💾 Saved: {filepath}")
+            return filepath
+        except Exception as e:
+            print(f"   ❌ Error saving {filepath}: {e}")
+            return None
+
     def plot_confidence_analysis(self, figsize=(14, 10), save_plots=False, save_dir=None):
         """
         Create detailed confidence analysis plots with better SVM handling
@@ -609,28 +622,13 @@ class MisclassificationAnalyzer:
 
         # Save plot if requested
         if save_plots:
-            save_directory = save_dir or self.save_dir
-            os.makedirs(save_directory, exist_ok=True)
-            filename = os.path.join(save_directory, 'misclassification_confidence_analysis.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
+            self._save_figure('misclassification_confidence_analysis')
 
         plt.show()
 
-        # Print summary of confidence analysis availability
-        if models_without_conf:
-            print(f"\n📝 Note: Confidence analysis not available for {len(models_without_conf)} models:")
-            for model_key in models_without_conf:
-                model_name = self.models[model_key]['name']
-                model_type = self.misclassified_data[model_key]['model_type']
-                print(f"   • {model_name} ({model_type}): Confidence analysis requires probability estimates")
-
-    # Keep all other existing methods unchanged...
-    # (The rest of the methods remain the same as in the original code)
-
     def plot_feature_importance_misclassification(self, figsize=(16, 10), save_plots=False, save_dir=None):
         """
-        Plot feature importance in misclassification (unchanged from original)
+        Plot feature importance in misclassification
         """
         print("📊 Creating Feature Misclassification Analysis...")
 
@@ -813,17 +811,13 @@ class MisclassificationAnalyzer:
 
         # Save plot if requested
         if save_plots:
-            save_directory = save_dir or self.save_dir
-            os.makedirs(save_directory, exist_ok=True)
-            filename = os.path.join(save_directory, 'misclassification_feature_importance.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
+            self._save_figure('misclassification_feature_importance')
 
         plt.show()
 
     def plot_misclassified_examples_distribution(self, figsize=(16, 12), save_plots=False, save_dir=None):
         """
-        Plot distribution of misclassified examples in feature space (unchanged from original)
+        Plot distribution of misclassified examples in feature space
         """
         print("📊 Creating Misclassified Examples Distribution...")
 
@@ -918,11 +912,7 @@ class MisclassificationAnalyzer:
 
         # Save plot if requested
         if save_plots:
-            save_directory = save_dir or self.save_dir
-            os.makedirs(save_directory, exist_ok=True)
-            filename = os.path.join(save_directory, 'misclassified_examples_distribution.png')
-            plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"   💾 Saved: {filename}")
+            self._save_figure('misclassified_examples_distribution')
 
         plt.show()
 
@@ -1008,123 +998,24 @@ class MisclassificationAnalyzer:
                 reason = boundary_analysis.get('reason', 'Unknown')
                 print(f"   Decision boundary analysis: Not available ({reason})")
 
-        # Cross-model insights
-        print(f"\n🎯 CROSS-MODEL INSIGHTS:")
-        print("-" * 25)
-
-        # Find most problematic features across all models
-        all_significant_features = {}
-        for model_key, data in self.misclassified_data.items():
-            feature_analysis = data['analysis']['feature_analysis']
-            for feature_name, analysis in feature_analysis.items():
-                if isinstance(analysis, dict) and analysis.get('significant_difference', False):
-                    if feature_name not in all_significant_features:
-                        all_significant_features[feature_name] = 0
-                    all_significant_features[feature_name] += 1
-
-        common_problematic = [
-            (feature, count) for feature, count in all_significant_features.items()
-            if count > 1
-        ]
-
-        if common_problematic:
-            print(f"   Features problematic across multiple models:")
-            for feature, count in sorted(common_problematic, key=lambda x: x[1], reverse=True):
-                print(f"      • {feature}: problematic in {count}/{total_models} models")
-
-        # Model ranking by error characteristics
-        model_scores = []
-        for model_key, data in self.misclassified_data.items():
-            analysis = data['analysis']
-
-            # Simple scoring: lower misclassification rate + balanced errors
-            misc_rate = analysis['misclassification_rate']
-            fp_rate = analysis['fp_rate']
-            fn_rate = analysis['fn_rate']
-            error_balance = abs(fp_rate - fn_rate)  # Lower is better (more balanced)
-
-            # Confidence discrimination (if available)
-            conf_analysis = analysis['confidence_analysis']
-            conf_score = 0
-            if conf_analysis.get('available', False):
-                conf_score = conf_analysis.get('confidence_difference', 0)  # Higher is better
-
-            # Overall score (lower is better for rates, higher for confidence)
-            overall_score = -(misc_rate + error_balance) + conf_score
-
-            model_scores.append((
-                self.models[model_key]['name'],
-                overall_score,
-                misc_rate,
-                error_balance,
-                conf_score
-            ))
-
-        model_scores.sort(key=lambda x: x[1], reverse=True)
-
-        print(f"\n   Model ranking by error characteristics:")
-        for i, (model_name, score, misc_rate, balance, conf) in enumerate(model_scores, 1):
-            print(f"      {i}. {model_name}")
-            print(f"         • Misclassification rate: {misc_rate:.3f}")
-            print(f"         • Error balance: {balance:.3f}")
-            print(f"         • Confidence discrimination: {conf:.3f}")
-
-        print(f"\n💡 RECOMMENDATIONS:")
-        print("-" * 20)
-
-        # Generate recommendations based on analysis
-        if common_problematic:
-            print(f"   📊 Feature Engineering:")
-            print(f"      • Investigate features: {', '.join([f[0] for f in common_problematic[:3]])}")
-            print(f"      • Consider feature transformation or selection")
-
-        # Model-specific recommendations
-        worst_model = model_scores[-1] if model_scores else None
-        best_model = model_scores[0] if model_scores else None
-
-        if worst_model and best_model:
-            print(f"   🎯 Model Improvement:")
-            print(f"      • Focus on improving: {worst_model[0]}")
-            print(f"      • Study techniques from: {best_model[0]}")
-
-        # Confidence-based recommendations
-        low_conf_models = [
-            self.models[model_key]['name']
-            for model_key, data in self.misclassified_data.items()
-            if data['analysis']['confidence_analysis'].get('available', False)
-            and data['analysis']['confidence_analysis'].get('confidence_difference', 0) < 0.1
-        ]
-
-        if low_conf_models:
-            print(f"   🔍 Confidence Improvement:")
-            print(f"      • Models with poor confidence discrimination: {', '.join(low_conf_models)}")
-            print(f"      • Consider calibration techniques")
-
-        # Recommendations for models without confidence analysis
-        models_without_conf = [
-            self.models[model_key]['name']
-            for model_key, data in self.misclassified_data.items()
-            if not data['analysis']['confidence_analysis'].get('available', False)
-        ]
-
-        if models_without_conf:
-            print(f"   🔧 Confidence Analysis Unavailable:")
-            print(f"      • Models: {', '.join(models_without_conf)}")
-            print(f"      • Consider using probability calibration techniques")
-            print(f"      • Alternative: Use prediction margins from decision functions")
-
         print(f"\n✅ Analysis complete!")
 
-    def export_analysis_results(self, filename="misclassification_analysis.csv", results_dir="output/results"):
-        """Export misclassification analysis results to CSV in specified results directory"""
+    def export_analysis_results(self, filename="misclassification_analysis.csv", results_dir=None):
+        """Export misclassification analysis results to CSV with centralized directory"""
 
         if not self.misclassified_data:
             print("❌ No analysis data available")
             return None
 
-        # Create results directory
-        os.makedirs(results_dir, exist_ok=True)
-        full_path = os.path.join(results_dir, filename)
+        # Use provided results_dir or instance default
+        output_dir = results_dir or self.results_dir
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Add timestamp to filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        timestamped_filename = f"{base_name}_{timestamp}.csv"
+        full_path = os.path.join(output_dir, timestamped_filename)
 
         print(f"💾 Exporting misclassification analysis to {full_path}...")
 
@@ -1217,7 +1108,7 @@ class MisclassificationAnalyzer:
             print("❌ No analysis data available. Run analyze_all_models() first.")
             return
 
-        # Use provided save_dir or default
+        # Use provided save_dir or instance default
         final_save_dir = save_dir or self.save_dir
 
         if save_plots:
@@ -1239,9 +1130,9 @@ class MisclassificationAnalyzer:
 
 
 def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_names=None, model_names=None,
-                                         save_plots=False, plots_dir="output/evaluation_plots", results_dir="output/results"):
+                                         save_plots=False, plots_dir=None, results_dir=None):
     """
-    Integration function for existing project structure
+    Integration function with centralized directory management
 
     Args:
         models_dict (dict): Dictionary of trained models
@@ -1250,14 +1141,14 @@ def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_na
         feature_names (list): Names of features
         model_names (dict): Optional display names for models
         save_plots (bool): Whether to save plots
-        plots_dir (str): Directory for plots
-        results_dir (str): Directory for CSV files
+        plots_dir (str): Directory for plots (if None, uses centralized)
+        results_dir (str): Directory for CSV files (if None, uses centralized)
 
     Returns:
         MisclassificationAnalyzer: Analyzer with complete analysis
     """
-    print("🔗 INTEGRATING MISCLASSIFICATION ANALYSIS WITH EXISTING MODELS")
-    print("=" * 70)
+    print("🔗 INTEGRATING MISCLASSIFICATION ANALYSIS WITH CENTRALIZED DIRECTORIES")
+    print("=" * 75)
 
     # Default model names
     default_names = {
@@ -1270,17 +1161,17 @@ def integrate_misclassification_analysis(models_dict, X_test, y_test, feature_na
     if model_names is None:
         model_names = default_names
 
-    # Create analyzer with plots directory
+    # Create analyzer - if plots_dir is None, it will use centralized directory manager
     analyzer = MisclassificationAnalyzer(save_dir=plots_dir)
 
     # Run analysis
     analyzer.analyze_all_models(models_dict, X_test, y_test, feature_names, model_names)
 
-    # Create comprehensive analysis with explicit directories
+    # Create comprehensive analysis
     analyzer.create_comprehensive_analysis(save_plots=save_plots, save_dir=plots_dir)
 
-    # Export results to results directory
-    if save_plots:  # Only export if we're in save mode
+    # Export results - if results_dir is None, it will use the analyzer's default
+    if save_plots:
         analyzer.export_analysis_results("wine_misclassification_analysis.csv", results_dir=results_dir)
 
     return analyzer

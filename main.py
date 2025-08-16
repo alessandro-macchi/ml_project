@@ -2,6 +2,7 @@ import os
 from src.preprocessing import load_and_combine_data, preprocess_features
 from models.model_training import train_all_models, print_model_results
 from src.analysis_functions import run_comprehensive_analysis, generate_final_summary_report
+from src.save import reset_directory_manager
 
 
 def run_experiment(data, experiment_name=""):
@@ -37,6 +38,10 @@ def main():
     """
     print("🍷 WINE QUALITY CLASSIFICATION WITH COMPREHENSIVE ANALYSIS")
     print("=" * 80)
+
+    # Reset and initialize the centralized directory manager for this run
+    print("📁 Initializing centralized directory management...")
+    reset_directory_manager()
 
     # Load data
     red_path = os.path.join("data", "winequality-red.csv")

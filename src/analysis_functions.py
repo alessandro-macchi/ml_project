@@ -1,10 +1,9 @@
 import os
 from datetime import datetime
-from src.visualization import create_model_visualizations
-from src.misclassification_analysis import MisclassificationAnalyzer
 from src.overfitting_analysis import integrate_overfitting_analysis
-from src.save import save_results
+from src.save import save_results, get_directory_manager
 from src.utils import get_model_names, get_wine_feature_names
+from src.visualization import ModelVisualizer
 
 
 def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test, y_test, experiment_name):
@@ -23,28 +22,38 @@ def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test
         tuple: (misclassification_analyzer, overfitting_analyzer)
     """
 
-    # Save results to results directory
+    # Save results to results directory (uses centralized directory management)
     save_results(results, experiment_name)
 
     # Standard visualizations - save to evaluation_plots
     run_visualizations(results, trained_models, X_test, y_test)
 
-    # Misclassification analysis - ensure consistent directory usage
+    # Misclassification analysis - with consistent directory usage
     misclassification_analyzer = run_misclassification_analysis(trained_models, X_test, y_test)
 
-    # Overfitting analysis - ensure consistent directory usage
+    # Overfitting analysis - with consistent directory usage
     overfitting_analyzer = run_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test)
 
     return misclassification_analyzer, overfitting_analyzer
 
 
 def run_visualizations(results, trained_models, X_test, y_test):
-    """Generate standard performance visualizations"""
+    """Generate standard performance visualizations using centralized directory management"""
     print(f"\n{'=' * 70}")
     print("🎨 GENERATING PERFORMANCE VISUALIZATIONS")
     print(f"{'=' * 70}")
 
-    visualizer = create_model_visualizations(trained_models, results, X_test, y_test)
+    # Use the visualization module's create_model_visualizations function
+    # This will automatically use the centralized directory manager
+    visualizer = ModelVisualizer.create_model_visualizations(
+        trained_models,
+        results,
+        X_test,
+        y_test,
+        model_names=get_model_names(),
+        save_plots=True,
+        save_dir=None  # Use centralized directory manager
+    )
     return visualizer
 
 
@@ -57,17 +66,29 @@ def run_misclassification_analysis(trained_models, X_test, y_test):
     wine_feature_names = get_wine_feature_names()
     model_names = get_model_names()
 
-    # Create analyzer with explicit save directory
-    analyzer = MisclassificationAnalyzer(save_dir="output/evaluation_plots")
-    analyzer.analyze_all_models(trained_models, X_test, y_test, wine_feature_names, model_names)
+    try:
+        # Import misclassification analyzer
+        from src.misclassification_analysis import MisclassificationAnalyzer
 
-    # Create comprehensive analysis with plots saved to evaluation_plots
-    analyzer.create_comprehensive_analysis(save_plots=True, save_dir="output/evaluation_plots")
+        # Create analyzer - it will use centralized directory management
+        analyzer = MisclassificationAnalyzer()
+        analyzer.analyze_all_models(trained_models, X_test, y_test, wine_feature_names, model_names)
 
-    # Export results to results directory
-    analyzer.export_analysis_results("wine_misclassification_analysis.csv", results_dir="output/results")
+        # Create comprehensive analysis with plots saved using centralized directory
+        analyzer.create_comprehensive_analysis(save_plots=True)
 
-    return analyzer
+        # Export results to results directory using centralized directory
+        analyzer.export_analysis_results("wine_misclassification_analysis.csv")
+
+        return analyzer
+
+    except ImportError as e:
+        print(f"⚠️ Misclassification analysis module not available: {e}")
+        print("   Skipping misclassification analysis...")
+        return None
+    except Exception as e:
+        print(f"❌ Error in misclassification analysis: {e}")
+        return None
 
 
 def run_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test):
@@ -77,25 +98,38 @@ def run_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test):
     print(f"{'=' * 70}")
 
     model_names = get_model_names()
+
+    # Use the integrated overfitting analysis function
+    # This will automatically use centralized directory management
     overfitting_analyzer = integrate_overfitting_analysis(
-        trained_models, X_train, y_train, X_test, y_test, model_names,
-        save_plots=True, plots_dir="output/evaluation_plots", results_dir="output/results"
+        trained_models,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        model_names,
+        save_plots=True,
+        save_dir=None  # Use centralized directory manager
     )
 
     return overfitting_analyzer
 
 
 def generate_final_summary_report(results, overfitting_analyzer, data):
-    """Generate comprehensive final summary report and save to file"""
+    """Generate comprehensive final summary report and save to file using centralized directory"""
     print(f"\n{'=' * 80}")
     print("📋 FINAL SUMMARY REPORT")
     print(f"{'=' * 80}")
 
     model_names = get_model_names()
 
-    # Create output directory if it doesn't exist
-    output_dir = os.path.join("output", "results")
-    os.makedirs(output_dir, exist_ok=True)
+    # Use centralized directory manager for results
+    try:
+        dir_manager = get_directory_manager()
+        output_dir = dir_manager.results_dir
+    except:
+        output_dir = os.path.join("output", "results")
+        os.makedirs(output_dir, exist_ok=True)
 
     # Generate timestamp for the report
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -114,17 +148,18 @@ def generate_final_summary_report(results, overfitting_analyzer, data):
     best_model_content = generate_best_model_summary(results)
     report_content.extend(best_model_content)
 
-    # Overfitting summary
-    overfitting_content = generate_overfitting_summary(overfitting_analyzer, model_names)
-    report_content.extend(overfitting_content)
+    # Overfitting summary (only if analyzer is available)
+    if overfitting_analyzer is not None:
+        overfitting_content = generate_overfitting_summary(overfitting_analyzer, model_names)
+        report_content.extend(overfitting_content)
+
+        # General recommendations
+        recommendations_content = generate_recommendations(overfitting_analyzer, model_names)
+        report_content.extend(recommendations_content)
 
     # Performance summary
     performance_content = generate_performance_summary(results, model_names)
     report_content.extend(performance_content)
-
-    # General recommendations
-    recommendations_content = generate_recommendations(overfitting_analyzer, model_names)
-    report_content.extend(recommendations_content)
 
     # Data insights
     data_insights_content = generate_data_insights(data)
@@ -135,14 +170,17 @@ def generate_final_summary_report(results, overfitting_analyzer, data):
     report_content.append("✅ All analyses complete!")
 
     # Save report to file
-    with open(report_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(report_content))
+    try:
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(report_content))
+
+        print(f"\n💾 Final summary report saved to: {report_path}")
+    except Exception as e:
+        print(f"⚠️ Could not save report to file: {e}")
 
     # Print to terminal (original behavior)
     for line in report_content:
         print(line)
-
-    print(f"\n💾 Final summary report saved to: {report_path}")
 
     return report_path
 
@@ -170,6 +208,13 @@ def generate_overfitting_summary(overfitting_analyzer, model_names):
     """Generate overfitting status summary"""
     content = []
     overfitting_summary = {}
+
+    if overfitting_analyzer is None or not hasattr(overfitting_analyzer, 'analysis_results'):
+        content.append("🎯 OVERFITTING STATUS SUMMARY")
+        content.append("-" * 35)
+        content.append("Overfitting analysis not available")
+        content.append("")
+        return content
 
     for model_key, analysis in overfitting_analyzer.analysis_results.items():
         status = analysis['fitting_diagnosis']['fitting_status']
@@ -235,6 +280,13 @@ def generate_recommendations(overfitting_analyzer, model_names):
     content.append("💡 FINAL RECOMMENDATIONS")
     content.append("-" * 25)
 
+    if overfitting_analyzer is None or not hasattr(overfitting_analyzer, 'analysis_results'):
+        content.append("Recommendations not available - overfitting analysis incomplete")
+        content.append("")
+        print(f"\n💡 FINAL RECOMMENDATIONS:")
+        print("Recommendations not available - overfitting analysis incomplete")
+        return content
+
     overfitting_summary = {}
     for model_key, analysis in overfitting_analyzer.analysis_results.items():
         status = analysis['fitting_diagnosis']['fitting_status']
@@ -269,6 +321,13 @@ def generate_recommendations(overfitting_analyzer, model_names):
 
         print(f"🟡 Underfitting detected in: {', '.join(underfitting_names)}")
         print("   → Consider: reduced regularization, more complex models, or feature engineering")
+
+    if not (good_fit_models or overfitting_models or underfitting_models):
+        content.append("⚪ All models show inconclusive fitting status")
+        content.append("   → Consider: more training data, longer training, or different evaluation metrics")
+
+        print(f"⚪ All models show inconclusive fitting status")
+        print("   → Consider: more training data, longer training, or different evaluation metrics")
 
     content.append("")
     return content

@@ -1,5 +1,5 @@
 """
-Model Performance Visualization Module with Plot Saving
+Model Performance Visualization Module with Centralized Directory Management
 
 This module provides comprehensive visualization functions for machine learning model evaluation.
 Can be easily integrated with existing modularized ML projects.
@@ -34,28 +34,57 @@ sns.set_palette("husl")
 
 class ModelVisualizer:
     """
-    Comprehensive visualization class for machine learning model evaluation.
+    Comprehensive visualization class for machine learning model evaluation with centralized directory management.
 
     This class can be used with any ML project to create standardized visualizations
     for model comparison and performance analysis.
     """
 
-    def __init__(self, save_dir='output/evaluation_plots'):
+    def __init__(self, save_dir=None):
         """
-        Initialize the visualizer
+        Initialize the visualizer with optional directory override
 
         Args:
-            save_dir (str): Directory to save plots (default: 'evaluation_plots')
+            save_dir (str): Directory to save plots (if None, uses centralized manager)
         """
+        if save_dir is None:
+            # Use centralized directory manager
+            try:
+                from src.save import get_directory_manager
+                dir_manager = get_directory_manager()
+                self.save_dir = dir_manager.plots_dir
+                print(f"📁 Using centralized plots directory: {self.save_dir}")
+            except ImportError:
+                # Fallback to default behavior
+                self.save_dir = "output/evaluation_plots"
+                os.makedirs(self.save_dir, exist_ok=True)
+                print(f"📁 Using fallback directory: {self.save_dir}")
+        else:
+            self.save_dir = save_dir
+            os.makedirs(self.save_dir, exist_ok=True)
+            print(f"📁 Using provided directory: {self.save_dir}")
+
         self.models = {}
         self.results = {}
         self.model_names = {}
-        self.save_dir = save_dir
 
-        # Create save directory if it doesn't exist
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-            print(f"📁 Created directory: {self.save_dir}")
+    def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
+        """Save figure with timestamp to avoid conflicts"""
+        if not hasattr(self, '_save_enabled') or not self._save_enabled:
+            return None
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"{filename}_{timestamp}.png"
+        filepath = os.path.join(self.save_dir, full_filename)
+
+        try:
+            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
+                       facecolor='white', edgecolor='none')
+            print(f"💾 Saved: {filepath}")
+            return filepath
+        except Exception as e:
+            print(f"❌ Error saving {filepath}: {e}")
+            return None
 
     def add_model_results(self, model_key, trained_model, evaluation_results, model_name=None):
         """
@@ -75,30 +104,6 @@ class ModelVisualizer:
             model_name = model_key.replace('_', ' ').title().replace('Custom', '(Custom)')
 
         self.model_names[model_key] = model_name
-
-    def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
-        """
-        Save the current figure to the evaluation_plots directory
-
-        Args:
-            filename (str): Name of the file (without extension)
-            dpi (int): Resolution for saving
-            bbox_inches (str): Bounding box setting
-        """
-        if not hasattr(self, '_save_enabled') or not self._save_enabled:
-            return
-
-        # Add timestamp to filename to avoid conflicts
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        full_filename = f"{filename}_{timestamp}.png"
-        filepath = os.path.join(self.save_dir, full_filename)
-
-        try:
-            plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
-                       facecolor='white', edgecolor='none')
-            print(f"💾 Saved: {filepath}")
-        except Exception as e:
-            print(f"❌ Error saving {filepath}: {e}")
 
     def plot_training_curves(self, figsize=(15, 10), save_plots=False):
         """
@@ -185,7 +190,6 @@ class ModelVisualizer:
 
     def _plot_synthetic_training_curves(self, figsize):
         """Generate synthetic training curves based on model performance"""
-
         fig, axes = plt.subplots(2, 2, figsize=figsize)
         axes = axes.flatten()
 
@@ -242,19 +246,11 @@ class ModelVisualizer:
         plt.show()
 
     def plot_metrics_comparison(self, figsize=(16, 12), save_plots=False):
-        """
-        Create comprehensive metrics comparison plots
-
-        Args:
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-        """
+        """Create comprehensive metrics comparison plots"""
         print("📊 Creating Metrics Comparison...")
         self._save_enabled = save_plots
 
         fig = plt.figure(figsize=figsize)
-
-        # Create a 2x3 grid
         gs = fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
 
         # Prepare data
@@ -394,15 +390,7 @@ class ModelVisualizer:
         plt.show()
 
     def plot_confusion_matrices(self, X_test, y_test, figsize=(16, 12), save_plots=False):
-        """
-        Plot confusion matrices for all models
-
-        Args:
-            X_test: Test features
-            y_test: Test labels
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-        """
+        """Plot confusion matrices for all models"""
         print("🔍 Creating Confusion Matrices...")
         self._save_enabled = save_plots
 
@@ -465,15 +453,7 @@ class ModelVisualizer:
         plt.show()
 
     def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
-        """
-        Plot ROC curves for all models
-
-        Args:
-            X_test: Test features
-            y_test: Test labels
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-        """
+        """Plot ROC curves for all models"""
         print("📈 Creating ROC Curves...")
         self._save_enabled = save_plots
 
@@ -548,15 +528,7 @@ class ModelVisualizer:
         return roc_data
 
     def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
-        """
-        Plot Precision-Recall curves for all models
-
-        Args:
-            X_test: Test features
-            y_test: Test labels
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-        """
+        """Plot Precision-Recall curves for all models"""
         print("📈 Creating Precision-Recall Curves...")
         self._save_enabled = save_plots
 
@@ -630,13 +602,7 @@ class ModelVisualizer:
         return pr_data
 
     def plot_model_comparison_radar(self, figsize=(10, 10), save_plots=False):
-        """
-        Create radar chart comparing all models across all metrics
-
-        Args:
-            figsize (tuple): Figure size for the plot
-            save_plots (bool): Whether to save the plot
-        """
+        """Create radar chart comparing all models across all metrics"""
         print("🎯 Creating Radar Chart...")
         self._save_enabled = save_plots
 
@@ -683,15 +649,7 @@ class ModelVisualizer:
         plt.show()
 
     def create_all_plots(self, X_test, y_test, save_plots=True, save_dir=None):
-        """
-        Generate all visualization plots in sequence
-
-        Args:
-            X_test: Test features
-            y_test: Test labels
-            save_plots (bool): Whether to save plots to files (default: True)
-            save_dir (str): Directory to save plots (overrides default if provided)
-        """
+        """Generate all visualization plots in sequence"""
         print("\n🎨 GENERATING COMPREHENSIVE MODEL VISUALIZATIONS")
         print("=" * 60)
 
@@ -700,7 +658,7 @@ class ModelVisualizer:
             self.save_dir = save_dir
             if not os.path.exists(self.save_dir):
                 os.makedirs(self.save_dir)
-                print(f"📁 Created directory: {self.save_dir}")
+                print(f"📁 Updated directory: {self.save_dir}")
 
         if save_plots:
             print(f"💾 Plots will be saved to: {os.path.abspath(self.save_dir)}")
@@ -736,12 +694,12 @@ class ModelVisualizer:
                 print(f"📁 All plots saved in: {os.path.abspath(self.save_dir)}")
 
             # Generate summary report
-            self._generate_summary_report(roc_data, pr_data)
+            self._generate_summary_report(roc_data, pr_data, save_plots)
 
         except Exception as e:
             print(f"❌ Error generating visualizations: {e}")
 
-    def _generate_summary_report(self, roc_data, pr_data):
+    def _generate_summary_report(self, roc_data, pr_data, save_to_file=False):
         """Generate a text summary of model performance"""
         print("\n📋 MODEL PERFORMANCE SUMMARY REPORT")
         print("=" * 50)
@@ -779,8 +737,8 @@ class ModelVisualizer:
         for i, (model_name, score) in enumerate(overall_scores, 1):
             print(f"   {i}. {model_name}: {score:.4f}")
 
-        # Save summary to file if save_plots is enabled
-        if hasattr(self, '_save_enabled') and self._save_enabled:
+        # Save summary to file if requested
+        if save_to_file:
             self._save_summary_report(roc_data, pr_data, overall_scores)
 
         print(f"\n✅ Summary report complete!")
@@ -840,40 +798,39 @@ class ModelVisualizer:
         except Exception as e:
             print(f"⚠️ Could not save summary report: {e}")
 
+    def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True,
+                                    save_dir=None):
+        """
+        Convenience function to create all visualizations with centralized directory management
 
-def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None, save_plots=True, save_dir='output/evaluation_plots'):
-    """
-    Convenience function to create all visualizations with minimal setup
+        Args:
+            models_dict (dict): Dictionary of trained models {model_key: model_object}
+            results_dict (dict): Dictionary of evaluation results {model_key: results_dict}
+            X_test: Test features
+            y_test: Test labels
+            model_names (dict): Optional custom model names {model_key: display_name}
+            save_plots (bool): Whether to save plots (default: True)
+            save_dir (str): Directory to save plots (if None, uses centralized manager)
 
-    Args:
-        models_dict (dict): Dictionary of trained models {model_key: model_object}
-        results_dict (dict): Dictionary of evaluation results {model_key: results_dict}
-        X_test: Test features
-        y_test: Test labels
-        model_names (dict): Optional custom model names {model_key: display_name}
-        save_plots (bool): Whether to save plots (default: True)
-        save_dir (str): Directory to save plots (default: 'evaluation_plots')
+        Returns:
+            ModelVisualizer: The visualizer object for further customization
+        """
+        visualizer = ModelVisualizer(save_dir=save_dir)
 
-    Returns:
-        ModelVisualizer: The visualizer object for further customization
-    """
-    visualizer = ModelVisualizer(save_dir=save_dir)
+        for model_key in models_dict.keys():
+            if model_key in results_dict:
+                model_name = None
+                if model_names and model_key in model_names:
+                    model_name = model_names[model_key]
 
-    for model_key in models_dict.keys():
-        if model_key in results_dict:
-            model_name = None
-            if model_names and model_key in model_names:
-                model_name = model_names[model_key]
+                visualizer.add_model_results(
+                    model_key,
+                    models_dict[model_key],
+                    results_dict[model_key],
+                    model_name
+                )
 
-            visualizer.add_model_results(
-                model_key,
-                models_dict[model_key],
-                results_dict[model_key],
-                model_name
-            )
+        # Generate all plots
+        visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
 
-    # Generate all plots
-    visualizer.create_all_plots(X_test, y_test, save_plots=save_plots)
-
-    return visualizer
-
+        return visualizer
