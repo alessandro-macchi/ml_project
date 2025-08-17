@@ -1,0 +1,59 @@
+================================================================================
+WINE QUALITY CLASSIFICATION - FINAL SUMMARY REPORT
+================================================================================
+Generated on: 2025-08-17 14:03:48
+
+🏆 BEST PERFORMING MODEL
+------------------------------
+Model: klr_custom
+Accuracy: 0.7465
+F1 Score: 0.7503
+Precision: 0.7624
+Recall: 0.7465
+
+🎯 OVERFITTING STATUS SUMMARY
+-----------------------------------
+🟢 Logistic Regression: GOOD_FIT
+🟢 Linear SVM: GOOD_FIT
+🟢 Kernel Logistic Regression: GOOD_FIT
+🟢 Kernel SVM: GOOD_FIT
+
+💡 FINAL RECOMMENDATIONS
+-------------------------
+✅ Well-fitted models: Logistic Regression, Linear SVM, Kernel Logistic Regression, Kernel SVM
+   → These models are ready for production use
+
+📈 PERFORMANCE SUMMARY
+-------------------------
+📊 Logistic Regression:
+   - Accuracy: 0.7304
+   - F1 Score: 0.7350
+   - Precision: 0.7546
+   - Recall: 0.7304
+📊 Linear SVM:
+   - Accuracy: 0.6995
+   - F1 Score: 0.7048
+   - Precision: 0.7426
+   - Recall: 0.6995
+📊 Kernel Logistic Regression:
+   - Accuracy: 0.7465
+   - F1 Score: 0.7503
+   - Precision: 0.7624
+   - Recall: 0.7465
+📊 Kernel SVM:
+   - Accuracy: 0.6934
+   - F1 Score: 0.6985
+   - Precision: 0.7436
+   - Recall: 0.6934
+
+📊 DATASET INSIGHTS
+--------------------
+• Total samples: 6497
+• Features: 13
+• Target distribution: {1: 4113, -1: 2384}
+  - Class 1: 4113 samples (63.3%)
+  - Class -1: 2384 samples (36.7%)
+
+
+🎯 For detailed analysis, refer to the generated visualizations and CSV reports.
+✅ All analyses complete!
