@@ -239,7 +239,7 @@ def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, 
         kernel=best_params["kernel"],
         lambda_=best_params["lambda_"],
         epochs=best_params["epochs"],
-        subsample_ratio=0.2,
+        subsample_ratio=0.3,
         batch_size=64,
         early_stopping_patience=20
     )
