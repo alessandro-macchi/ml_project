@@ -1,0 +1,51 @@
+MODEL PERFORMANCE SUMMARY REPORT
+==================================================
+
+Generated on: 2025-08-18 03:54:36
+Models evaluated: 4
+Model names: Logistic Regression, Linear SVM, Kernel Logistic Regression, Kernel SVM
+
+BEST PERFORMERS:
+   Accuracy: Kernel Logistic Regression (0.7458)
+   F1-Score: Kernel Logistic Regression (0.7495)
+   Precision: Kernel Logistic Regression (0.7610)
+   Recall: Kernel Logistic Regression (0.7458)
+   ROC-AUC: Kernel Logistic Regression (0.8218)
+   PR-AUC: Kernel Logistic Regression (0.8824)
+
+OVERALL RANKING (by average score):
+   1. Kernel Logistic Regression: 0.7505
+   2. Logistic Regression: 0.7376
+   3. Linear SVM: 0.7248
+   4. Kernel SVM: 0.7092
+
+DETAILED METRICS:
+------------------------------
+
+Logistic Regression:
+   Accuracy: 0.7304
+   Balanced Accuracy: 0.7389
+   Precision: 0.7546
+   Recall: 0.7304
+   F1-Score: 0.7350
+
+Linear SVM:
+   Accuracy: 0.7142
+   Balanced Accuracy: 0.7319
+   Precision: 0.7515
+   Recall: 0.7142
+   F1-Score: 0.7193
+
+Kernel Logistic Regression:
+   Accuracy: 0.7458
+   Balanced Accuracy: 0.7471
+   Precision: 0.7610
+   Recall: 0.7458
+   F1-Score: 0.7495
+
+Kernel SVM:
+   Accuracy: 0.6941
+   Balanced Accuracy: 0.7227
+   Precision: 0.7496
+   Recall: 0.6941
+   F1-Score: 0.6989

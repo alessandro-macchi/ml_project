@@ -1,0 +1,38 @@
+{
+  "lr_custom": {
+    "accuracy": 0.7303543913713405,
+    "balanced_accuracy": 0.7389105277147355,
+    "precision": 0.7545995335192673,
+    "recall": 0.7303543913713405,
+    "f1": 0.7350016836069747,
+    "experiment": "Wine Classification",
+    "timestamp": "20250818_023111"
+  },
+  "svm_custom": {
+    "accuracy": 0.714175654853621,
+    "balanced_accuracy": 0.7318847246927969,
+    "precision": 0.7514853188886494,
+    "recall": 0.714175654853621,
+    "f1": 0.719332314760412,
+    "experiment": "Wine Classification",
+    "timestamp": "20250818_023111"
+  },
+  "klr_custom": {
+    "accuracy": 0.7457627118644068,
+    "balanced_accuracy": 0.7470966488785296,
+    "precision": 0.7609592756336735,
+    "recall": 0.7457627118644068,
+    "f1": 0.7494772451903526,
+    "experiment": "Wine Classification",
+    "timestamp": "20250818_023111"
+  },
+  "ksvm_custom": {
+    "accuracy": 0.6941448382126348,
+    "balanced_accuracy": 0.7227018544644135,
+    "precision": 0.7496277707925558,
+    "recall": 0.6941448382126348,
+    "f1": 0.6989151299855397,
+    "experiment": "Wine Classification",
+    "timestamp": "20250818_023111"
+  }
+}
