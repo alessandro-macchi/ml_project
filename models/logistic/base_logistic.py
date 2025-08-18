@@ -4,13 +4,14 @@ import numpy as np
 
 
 class LogisticRegressionScratch:
-    def __init__(self, learning_rate=0.1, regularization_strength=0.01, epochs=1000):
+    def __init__(self, learning_rate=0.1, regularization_strength=0.01, epochs=1000, random_state=None):
         self.learning_rate = learning_rate
         self.lambda_ = regularization_strength
         self.epochs = epochs
         self.weights = None
         self.bias = None
         self.losses = []
+        self.random_state = np.random.RandomState(random_state)
 
     def sigmoid(self, z):
         z = np.clip(z, -500, 500)
@@ -62,7 +63,7 @@ def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_g
     best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, param_grid)
     print(f"✅ Best LR params: {best_params}, CV Accuracy: {best_score:.4f}")
 
-    model = LogisticRegressionScratch(**best_params)
+    model = LogisticRegressionScratch(random_state=24, **best_params)
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
 

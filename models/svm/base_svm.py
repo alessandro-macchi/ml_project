@@ -9,22 +9,28 @@ class SVMClassifierScratch:
     Hyperparameters:
       - lambda_: regularization strength
       - epochs: number of iterations over the training data
+      - random_state: for reproducible random sampling
     """
-    def __init__(self, lambda_=0.01):
+
+    def __init__(self, lambda_=0.01, random_state=None):
         self.lambda_ = lambda_
         self.weights = None
         self.bias = 0
+        self.random_state = np.random.RandomState(random_state)
 
     def fit(self, X, y, max_iter=1000):
         X = np.array(X)
         y = np.array(y)
 
         n_samples, n_features = X.shape
-        self.weights = np.zeros(n_features)
+
+        # ✅ Use model's random state for weight initialization
+        self.weights = self.random_state.normal(0, 0.01, n_features)
         self.bias = 0
 
         for t in range(1, max_iter + 1):
-            i = np.random.randint(0, n_samples)
+            # ✅ Use model's random state for sample selection
+            i = self.random_state.randint(0, n_samples)
             x_i = X[i]
             y_i = y[i]
 
@@ -48,7 +54,8 @@ def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
     best_params, best_score = grid_search(X_train, y_train, SVMClassifierScratch, param_grid)
     print(f"✅ Best SVM params: {best_params}, CV Accuracy: {best_score:.4f}")
 
-    model = SVMClassifierScratch(lambda_=best_params["lambda_"])
+    # ✅ Use unique random state for this model
+    model = SVMClassifierScratch(lambda_=best_params["lambda_"], random_state=15)
     model.fit(X_train, y_train, max_iter=best_params["max_iter"])
     preds = model.predict(X_test)
 

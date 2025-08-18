@@ -1,5 +1,4 @@
 import os
-import numpy as np
 from src.preprocessing import load_and_combine_data, preprocess_features
 from models.model_training import train_all_models, print_model_results
 from src.analysis_functions import run_comprehensive_analysis, generate_final_summary_report
@@ -25,7 +24,7 @@ def run_experiment(data, experiment_name=""):
     # Print initial results
     print_model_results(results, experiment_name)
 
-    # 3. COMPREHENSIVE ANALYSIS
+    # 3. EVALUATION AND ANALYSIS
     misclassification_analyzer, overfitting_analyzer = run_comprehensive_analysis(
         results, trained_models, X_train, y_train, X_test, y_test, experiment_name
     )
@@ -39,8 +38,6 @@ def main():
     """
     print("🍷 WINE QUALITY CLASSIFICATION WITH COMPREHENSIVE ANALYSIS")
     print("=" * 80)
-
-    np.random.seed(6)
 
     # Reset and initialize the centralized directory manager for this run
     print("📁 Initializing centralized directory management...")

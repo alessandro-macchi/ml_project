@@ -6,7 +6,7 @@ from src.utils import sigmoid
 
 class KernelLogisticRegression:
     def __init__(self, kernel, lambda_=0.01, epochs=1000, batch_size=32,
-                 subsample_ratio=0.3, early_stopping_patience=50):
+                 subsample_ratio=0.3, early_stopping_patience=50, random_state=None):
         self.kernel = kernel
         self.lambda_ = lambda_
         self.epochs = epochs
@@ -18,6 +18,7 @@ class KernelLogisticRegression:
         self.best_alphas = None
         self.best_loss = float('inf')
         self.patience_counter = 0
+        self.random_state = np.random.RandomState(random_state)
 
     def _compute_kernel_matrix(self, X1, X2=None):
         """Highly optimized kernel matrix computation - NO nested loops!"""
@@ -104,7 +105,7 @@ class KernelLogisticRegression:
         n_support = max(int(n_samples * self.subsample_ratio), 50)  # At least 50 points
         n_support = min(n_support, n_samples)  # Don't exceed available samples
 
-        indices = np.random.choice(n_samples, n_support, replace=False)
+        indices = self.random_state.choice(n_samples, n_support, replace=False)
         return X_array[indices], indices
 
     def fit(self, X, y):
@@ -125,7 +126,7 @@ class KernelLogisticRegression:
         n_support = self.X_support.shape[0]
 
         # Initialize alphas
-        self.alphas = np.random.normal(0, 0.01, n_support)
+        self.alphas = self.random_state.normal(0, 0.01, n_support)
 
         # Precompute kernel matrix for support vectors
         print(f"     🧮 Computing kernel matrix ({n_support}x{n_support})...")
@@ -137,7 +138,7 @@ class KernelLogisticRegression:
 
         for epoch in range(self.epochs):
             # Mini-batch training
-            indices = np.random.permutation(n_samples)
+            indices = self.random_state.permutation(n_samples)
             epoch_loss = 0
             n_batches = 0
 
@@ -241,7 +242,8 @@ def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, 
         epochs=best_params["epochs"],
         subsample_ratio=0.3,
         batch_size=64,
-        early_stopping_patience=20
+        early_stopping_patience=20,
+        random_state=6
     )
     model.fit(X_train, y_train)
     preds = model.predict(X_test)

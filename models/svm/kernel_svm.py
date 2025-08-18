@@ -31,11 +31,12 @@ class KernelPegasosSVM:
     - Updating coefficients based on margin violations using sub-gradient descent
     """
 
-    def __init__(self, kernel, lambda_=0.01, max_iter=1000, verbose=False):
+    def __init__(self, kernel, lambda_=0.01, max_iter=1000, verbose=False, random_state=None):
         self.kernel = kernel
         self.lambda_ = lambda_
         self.max_iter = max_iter
         self.verbose = verbose
+        self.random_state = np.random.RandomState(random_state)
 
         # Support vectors and their coefficients
         self.support_vectors = []
@@ -84,7 +85,7 @@ class KernelPegasosSVM:
 
         for t in range(1, self.max_iter + 1):
             # Sample a random training example
-            i = np.random.randint(0, n_samples)
+            i = self.random_state.randint(0, n_samples)
             x_t = X[i]
             y_t = y[i]  # Directly use the {-1, +1} label
 
@@ -237,7 +238,8 @@ def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
     model = KernelPegasosSVM(
         kernel=best_params["kernel"],
         lambda_=best_params["lambda_"],
-        max_iter=best_params["max_iter"]
+        max_iter=best_params["max_iter"],
+        random_state=12
     )
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
