@@ -11,23 +11,23 @@ def get_parameter_grids():
     """
     return {
         'lr': {
-            'learning_rate': [0.08, 0.1, 0.12, 0.15],
+            'learning_rate': [0.01, 0.05, 0.08, 0.1, 0.12, 0.15],
             'regularization_strength': [0.005, 0.01, 0.02, 0.05],
             'epochs': [1000, 1200, 1500]
         },
         'svm': {
-            'lambda_': [0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],
-            'max_iter': [1200, 1500, 2000, 3000],
+            'lambda_': [0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],
+            'max_iter': [1200, 1500, 2000, 3000, 4000, 5000],
         },
         'klr': {
-            "kernel": create_named_kernels(gamma_values=[0.1, 0.12, 0.15], degree_values=[], coef0_values=[]),
-            "lambda_": [0.005, 0.01],
-            "epochs": [500, 600]
+            "kernel": create_named_kernels(gamma_values=[0.1, 0.15, 0.2], degree_values=[2, 3], coef0_values=[0.5, 1]), #gamma: 0.12, degree: 4, coef0: 1.5
+            "lambda_": [0.005, 0.01], # 0.001
+            "epochs": [500, 600] # 1000
         },
         'ksvm': {
-            "kernel": create_named_kernels(gamma_values=[0.1, 0.15], degree_values=[2, 3], coef0_values=[0.5, 1, 1.5]),
-            "lambda_": [0.005, 0.01, 0.05],
-            "max_iter": [1000, 1500]
+            "kernel": create_named_kernels(gamma_values=[0.15, 0.2], degree_values=[2, 3], coef0_values=[0.5, 1]), #gamma: 0.1, 0.3 degree: 4, coef0: 1.5
+            "lambda_": [0.0005, 0.001, 0.005], #0.01, 0.05
+            "max_iter": [2000, 3000], #1000, 1500
         }
     }
 
@@ -81,7 +81,6 @@ def train_all_models(X_train, y_train, X_test, y_test):
     trained_models['ksvm_custom'] = ksvm_model
 
     return results, trained_models
-
 
 def print_model_results(results, experiment_name):
     """Print formatted results for all models"""

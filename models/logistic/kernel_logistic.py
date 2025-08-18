@@ -5,8 +5,8 @@ from src.utils import sigmoid
 
 
 class KernelLogisticRegression:
-    def __init__(self, kernel, lambda_=0.01, epochs=1000, batch_size=32,
-                 subsample_ratio=0.3, early_stopping_patience=50, random_state=None):
+    def __init__(self, kernel, lambda_=0.01, epochs=1000, batch_size=64,
+                 subsample_ratio=0.3, early_stopping_patience=20, random_state=None):
         self.kernel = kernel
         self.lambda_ = lambda_
         self.epochs = epochs
