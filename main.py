@@ -25,11 +25,11 @@ def run_experiment(data, experiment_name=""):
     print_model_results(results, experiment_name)
 
     # 3. EVALUATION AND ANALYSIS
-    misclassification_analyzer, overfitting_analyzer = run_comprehensive_analysis(
+    overfitting_analyzer = run_comprehensive_analysis(
         results, trained_models, X_train, y_train, X_test, y_test, experiment_name
     )
 
-    return results, trained_models, misclassification_analyzer, overfitting_analyzer
+    return results, trained_models, overfitting_analyzer
 
 
 def main():
@@ -51,7 +51,7 @@ def main():
     print("\n🚀 Starting experiment with comprehensive analysis...")
 
     # Run experiment
-    results, trained_models, misclassification_analyzer, overfitting_analyzer = run_experiment(
+    results, trained_models, overfitting_analyzer = run_experiment(
         data,
         experiment_name="Wine Classification"
     )
@@ -59,7 +59,7 @@ def main():
     # Generate the final comprehensive report
     generate_final_summary_report(results, overfitting_analyzer, data)
 
-    return results, trained_models, misclassification_analyzer, overfitting_analyzer
+    return results, trained_models, overfitting_analyzer
 
 
 if __name__ == "__main__":
