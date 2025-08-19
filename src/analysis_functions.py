@@ -111,7 +111,6 @@ def generate_final_summary_report(results, overfitting_analyzer, data):
     report_content.extend(best_model_content)
 
     report_content.append("")
-    report_content.append("🎯 For detailed analysis, refer to the generated visualizations and CSV reports.")
     report_content.append("✅ All analyses complete!")
 
     # Save report to file
