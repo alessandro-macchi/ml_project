@@ -131,42 +131,12 @@ class OverfittingAnalyzer:
             return {'available': False, 'error': str(e)}
 
     def _create_fresh_model(self, model_key, original_model):
-        """Create a fresh instance of the model with same parameters"""
+        """Return a model with exactly the same parameters as the tuned/trained model"""
         try:
-            # Import models from the existing structure
-            if 'lr' in model_key.lower():
-                from models.linear.logistic_regression import LogisticRegressionScratch
-                return LogisticRegressionScratch(
-                    learning_rate=getattr(original_model, 'learning_rate', 0.1),
-                    regularization_strength=getattr(original_model, 'lambda_', 0.01),
-                    epochs=min(200, getattr(original_model, 'epochs', 500))  # Reduce for speed
-                )
-            elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
-                from models.linear.svm import SVMClassifierScratch
-                return SVMClassifierScratch(
-                    lambda_=getattr(original_model, 'lambda_', 0.01)
-                )
-            elif 'klr' in model_key.lower():
-                from models.kernel.kernel_logistic import KernelLogisticRegression
-                return KernelLogisticRegression(
-                    kernel=getattr(original_model, 'kernel', None),
-                    lambda_=getattr(original_model, 'lambda_', 0.01),
-                    epochs=min(100, getattr(original_model, 'epochs', 200)),  # Reduce for speed
-                    subsample_ratio=0.1,  # Use smaller subset
-                    batch_size=32
-                )
-            elif 'ksvm' in model_key.lower():
-                from models.kernel.kernel_svm import KernelPegasosSVM
-                return KernelPegasosSVM(
-                    kernel=getattr(original_model, 'kernel', None),
-                    lambda_=getattr(original_model, 'lambda_', 0.01),
-                    max_iter=min(100, getattr(original_model, 'max_iter', 200))  # Reduce for speed
-                )
-            else:
-                print(f"     ⚠️ Unknown model type {model_key}, using original")
-                return original_model
-        except ImportError as e:
-            print(f"     ⚠️ Could not import model for {model_key}: {e}")
+            import copy
+            return copy.deepcopy(original_model)
+        except Exception as e:
+            print(f"⚠️ Could not copy model {model_key}: {e}")
             return original_model
 
     def _save_plot_safely(self, filename, dpi=300, bbox_inches='tight'):

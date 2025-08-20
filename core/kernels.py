@@ -20,8 +20,8 @@ class NamedKernel:
     def __str__(self):
         return self.name
 
-    @classmethod
-    def prepare_param_grid(cls, param_grid):
+    @staticmethod
+    def prepare_param_grid(param_grid):
         """Convert kernel parameters to named kernels for grid search"""
         param_grid = param_grid.copy()
 
