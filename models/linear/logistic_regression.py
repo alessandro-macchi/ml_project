@@ -57,14 +57,14 @@ class LogisticRegressionScratch:
         scores = np.dot(X, self.weights) + self.bias
         return np.where(scores >= 0, 1, -1)
 
+    @classmethod
+    def run_logistic_regression_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
+        best_params, best_score = grid_search(X_train, y_train, cls, param_grid)
 
-def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, param_grid)
+        model = cls(random_state=24, **best_params)
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
 
-    model = LogisticRegressionScratch(random_state=24, **best_params)
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
+        results = {'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")}
 
-    results = {'lr_custom': comprehensive_evaluation(y_test, preds, "Logistic Regression (Custom)")}
-
-    return results, model
+        return results, model

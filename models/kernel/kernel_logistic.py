@@ -231,22 +231,22 @@ class KernelLogisticRegression:
         scores = K @ self.alphas
         return np.where(scores >= 0, 1, -1)
 
+    @classmethod
+    def run_kernel_logistic_regression_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
+        best_params, best_score = grid_search(X_train, y_train, cls, param_grid)
 
-def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    best_params, best_score = grid_search(X_train, y_train, KernelLogisticRegression, param_grid)
+        model = cls(
+            kernel=best_params["kernel"],
+            lambda_=best_params["lambda_"],
+            epochs=best_params["epochs"],
+            subsample_ratio=0.3,
+            batch_size=64,
+            early_stopping_patience=20,
+            random_state=6
+        )
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
 
-    model = KernelLogisticRegression(
-        kernel=best_params["kernel"],
-        lambda_=best_params["lambda_"],
-        epochs=best_params["epochs"],
-        subsample_ratio=0.3,
-        batch_size=64,
-        early_stopping_patience=20,
-        random_state=6
-    )
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
+        results = {'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")}
 
-    results = {'klr_custom': comprehensive_evaluation(y_test, preds, "Kernel Logistic Regression (Custom)")}
-
-    return results, model
+        return results, model

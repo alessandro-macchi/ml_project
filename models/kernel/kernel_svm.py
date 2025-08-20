@@ -229,21 +229,21 @@ class KernelPegasosSVM:
 
         return probabilities
 
+    @classmethod
+    def run_kernel_svm_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
+        best_params, best_score = grid_search(X_train, y_train, cls, param_grid)
 
-def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
-    best_params, best_score = grid_search(X_train, y_train, KernelPegasosSVM, param_grid)
+        model = cls(
+            kernel=best_params["kernel"],
+            lambda_=best_params["lambda_"],
+            max_iter=best_params["max_iter"],
+            random_state=12
+        )
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
 
-    model = KernelPegasosSVM(
-        kernel=best_params["kernel"],
-        lambda_=best_params["lambda_"],
-        max_iter=best_params["max_iter"],
-        random_state=12
-    )
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
+        print(f"📊 Number of support vectors: {len(model.support_vectors)}")
 
-    print(f"📊 Number of support vectors: {len(model.support_vectors)}")
+        results = {'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")}
 
-    results = {'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")}
-
-    return results, model
+        return results, model

@@ -48,15 +48,15 @@ class SVMClassifierScratch:
         scores = np.dot(X, self.weights) + self.bias
         return np.where(scores >= 0, 1, -1)  # Return {-1, +1} labels
 
+    @classmethod
+    def run_svm_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
+        best_params, best_score = grid_search(X_train, y_train, cls, param_grid)
 
-def run_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
-    best_params, best_score = grid_search(X_train, y_train, SVMClassifierScratch, param_grid)
+        # ✅ Use unique random state for this model
+        model = cls(lambda_=best_params["lambda_"], random_state=15)
+        model.fit(X_train, y_train, max_iter=best_params["max_iter"])
+        preds = model.predict(X_test)
 
-    # ✅ Use unique random state for this model
-    model = SVMClassifierScratch(lambda_=best_params["lambda_"], random_state=15)
-    model.fit(X_train, y_train, max_iter=best_params["max_iter"])
-    preds = model.predict(X_test)
+        results = {'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")}
 
-    results = {'svm_custom': comprehensive_evaluation(y_test, preds, "Linear SVM (Custom)")}
-
-    return results, model
+        return results, model
