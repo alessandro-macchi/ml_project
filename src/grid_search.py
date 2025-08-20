@@ -1,4 +1,5 @@
 from src.cross_validation import cross_validate
+from src.utils import NamedKernel
 import time
 
 
@@ -10,6 +11,8 @@ def grid_search(X, y, model_class, param_grid, k_folds=5):
         X, y: Dataset
         model_class: Model class to instantiate
         param_grid: Dictionary of parameter lists, e.g. {'lambda_': [...], 'max_iter': [...]}
+                   For kernel models, can include 'gamma_values', 'degree_values', 'coef0_values'
+                   which will be converted to named kernel objects automatically.
         k_folds: Number of CV folds
 
     Returns:
@@ -17,6 +20,9 @@ def grid_search(X, y, model_class, param_grid, k_folds=5):
     """
     best_score = -1
     best_params = None
+
+    # Let NamedKernel handle the kernel parameter conversion
+    param_grid = NamedKernel.prepare_param_grid(param_grid)
 
     param_names = list(param_grid.keys())
     param_values = list(param_grid.values())
@@ -84,20 +90,9 @@ def format_params_display(params):
     formatted_parts = []
 
     for key, value in params.items():
-        if key == "kernel":
-            # For kernel objects, show their name
-            if hasattr(value, 'name'):
-                formatted_parts.append(f"{key}={value.name}")
-            elif hasattr(value, '__name__'):
-                formatted_parts.append(f"{key}={value.__name__}")
-            else:
-                formatted_parts.append(f"{key}={str(value)[:20]}...")
-        elif key == "kernel_fn":
-            # For kernel function objects
-            if hasattr(value, 'name'):
-                formatted_parts.append(f"kernel={value.name}")
-            else:
-                formatted_parts.append(f"kernel={str(value)[:20]}...")
+        if key in ["kernel", "kernel_fn"] and hasattr(value, 'name'):
+            # NamedKernel objects have a .name attribute
+            formatted_parts.append(f"{key}={value.name}")
         elif isinstance(value, float):
             formatted_parts.append(f"{key}={value:.4f}")
         else:
