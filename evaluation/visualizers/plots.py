@@ -71,7 +71,7 @@ class ModelVisualizer:
             model_name = model_key.replace('_', ' ').title().replace('Custom', '(Custom)')
         self.model_names[model_key] = model_name
 
-    def plot_metrics_comparison(self, figsize=(15, 5), save_plots=False):
+    def plot_metrics_comparison(self, figsize=(15, 8), save_plots=False):
         """Create metrics comparison plots for accuracy, precision/recall, and f1-score"""
         print("📊 Creating Metrics Comparison...")
         self._save_enabled = save_plots

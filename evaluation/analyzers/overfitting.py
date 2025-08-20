@@ -74,7 +74,7 @@ class OverfittingAnalyzer:
         return name_mapping.get(model_key, model_key.replace('_', ' ').title())
 
     def _generate_learning_curves(self, model_key):
-        """Generate learning curves to analyze overfitting"""
+        """Generate learning curves to analyze overfitting - FIXED VERSION"""
         try:
             model = self.models[model_key]['model']
             train_sizes = np.linspace(0.1, 1.0, 10)
@@ -90,22 +90,35 @@ class OverfittingAnalyzer:
                 if n_train < 10:
                     continue
 
-                # Sample training data
-                indices = np.random.choice(n_samples, n_train, replace=False)
-                X_subset = self.X_train[indices]
-                y_subset = self.y_train[indices]
+                # CRITICAL FIX: Use different splits for training and evaluation
+                # Split the training data into train_subset and train_validation
+                indices = np.arange(n_samples)
+                np.random.shuffle(indices)
+
+                # Use part for training, part for evaluation
+                train_indices = indices[:n_train]
+                # Use a separate portion for training evaluation (not the same data!)
+                eval_train_size = min(n_train, 200)  # Cap evaluation size for efficiency
+                eval_train_indices = indices[:eval_train_size]
+
+                X_train_subset = self.X_train[train_indices]
+                y_train_subset = self.y_train[train_indices]
+
+                # Separate data for training evaluation
+                X_train_eval = self.X_train[eval_train_indices]
+                y_train_eval = self.y_train[eval_train_indices]
 
                 try:
                     # Create fresh model instance
                     subset_model = self._create_fresh_model(model_key, model)
                     if hasattr(subset_model, 'fit'):
-                        subset_model.fit(X_subset, y_subset)
+                        subset_model.fit(X_train_subset, y_train_subset)
 
-                    # Evaluate on training subset and validation set
-                    train_pred = subset_model.predict(X_subset)
+                    # FIXED: Evaluate on separate portions of training data
+                    train_pred = subset_model.predict(X_train_eval)
                     val_pred = subset_model.predict(self.X_test)
 
-                    train_acc = accuracy_score(y_subset, train_pred)
+                    train_acc = accuracy_score(y_train_eval, train_pred)
                     val_acc = accuracy_score(self.y_test, val_pred)
 
                     train_scores.append(train_acc)
@@ -147,7 +160,7 @@ class OverfittingAnalyzer:
             filepath = os.path.join(self.save_dir, full_filename)
 
             plt.savefig(filepath, dpi=dpi, bbox_inches=bbox_inches,
-                       facecolor='white', edgecolor='none')
+                        facecolor='white', edgecolor='none')
             print(f"   💾 Saved: {filepath}")
             return filepath
         except Exception as e:

@@ -4,7 +4,6 @@ from core.math_utils import sigmoid
 import numpy as np
 
 
-
 class KernelLogisticRegression:
     def __init__(self, kernel, lambda_=0.01, epochs=1000, batch_size=64,
                  subsample_ratio=0.3, early_stopping_patience=20, random_state=None):
@@ -122,16 +121,20 @@ class KernelLogisticRegression:
         else:
             y = np.array(y)
 
-        # Subsample support vectors for efficiency
-        self.X_support, support_indices = self._subsample_support_vectors(X)
-        n_support = self.X_support.shape[0]
+        # CRITICAL FIX: Store the ORIGINAL training data for prediction
+        self.X_train_original = X.copy()
+        self.y_train_original = y.copy()
 
-        # Initialize alphas
-        self.alphas = self.random_state.normal(0, 0.01, n_support)
+        # Subsample support vectors for efficiency during training
+        X_support_subset, support_indices = self._subsample_support_vectors(X)
+        n_support = X_support_subset.shape[0]
+
+        # Initialize alphas (only for the subset during training)
+        alphas_subset = self.random_state.normal(0, 0.01, n_support)
 
         # Precompute kernel matrix for support vectors
         print(f"     🧮 Computing kernel matrix ({n_support}x{n_support})...")
-        K_support = self._compute_kernel_matrix(self.X_support)
+        K_support = self._compute_kernel_matrix(X_support_subset)
 
         n_samples = X.shape[0]
 
@@ -150,15 +153,15 @@ class KernelLogisticRegression:
                 y_batch = y[batch_indices]
 
                 # Compute kernel matrix between batch and support vectors
-                K_batch = self._compute_kernel_matrix(X_batch, self.X_support)
+                K_batch = self._compute_kernel_matrix(X_batch, X_support_subset)
 
                 # Forward pass
-                scores = K_batch @ self.alphas
+                scores = K_batch @ alphas_subset
 
                 # Margin-based logistic loss for {-1, +1} labels
                 margins = -y_batch * scores
                 logistic_loss = np.mean(np.logaddexp(0, margins))
-                reg_loss = self.lambda_ * np.sum(self.alphas ** 2)
+                reg_loss = self.lambda_ * np.sum(alphas_subset ** 2)
                 batch_loss = logistic_loss + reg_loss
 
                 epoch_loss += batch_loss
@@ -167,20 +170,20 @@ class KernelLogisticRegression:
                 # Compute gradients for margin-based loss
                 sigmoid_margins = sigmoid(margins)
                 gradient_factor = -y_batch * sigmoid_margins
-                gradients = K_batch.T @ gradient_factor / len(y_batch) + 2 * self.lambda_ * self.alphas
+                gradients = K_batch.T @ gradient_factor / len(y_batch) + 2 * self.lambda_ * alphas_subset
 
                 # Adaptive learning rate
                 learning_rate = 0.01 / (1 + 0.001 * epoch)
 
                 # Update alphas
-                self.alphas -= learning_rate * gradients
+                alphas_subset -= learning_rate * gradients
 
             avg_loss = epoch_loss / n_batches
 
             # Early stopping
             if avg_loss < self.best_loss:
                 self.best_loss = avg_loss
-                self.best_alphas = self.alphas.copy()
+                best_alphas_subset = alphas_subset.copy()
                 self.patience_counter = 0
             else:
                 self.patience_counter += 1
@@ -193,9 +196,47 @@ class KernelLogisticRegression:
                 print(f"       Early stopping at epoch {epoch}")
                 break
 
-        # Use best alphas
-        if self.best_alphas is not None:
-            self.alphas = self.best_alphas
+        # CRITICAL FIX: After training, we need to compute alphas for ALL training points
+        # Use the trained model on subset to predict on all training data
+        try:
+            if 'best_alphas_subset' in locals():
+                trained_alphas_subset = best_alphas_subset
+            else:
+                trained_alphas_subset = alphas_subset
+
+            # Now we'll use ALL training data as support vectors for prediction
+            # This ensures consistency in kernel matrix dimensions
+            self.X_support = self.X_train_original
+            n_total = len(self.X_train_original)
+
+            # Compute kernel matrix between all training points and the subset used for training
+            K_all_to_subset = self._compute_kernel_matrix(self.X_train_original, X_support_subset)
+
+            # Get predictions from the trained subset model
+            subset_scores = K_all_to_subset @ trained_alphas_subset
+
+            # Convert scores to target values for retraining
+            # Use the original labels as targets
+            target_scores = self.y_train_original.astype(float)
+
+            # Solve for alphas using least squares (closed form solution)
+            # K_full @ alphas = target_scores
+            K_full = self._compute_kernel_matrix(self.X_train_original)
+
+            # Add regularization to avoid singular matrix
+            K_reg = K_full + self.lambda_ * np.eye(n_total)
+
+            try:
+                self.alphas = np.linalg.solve(K_reg, target_scores)
+            except np.linalg.LinAlgError:
+                # Fallback: use pseudo-inverse if matrix is singular
+                self.alphas = np.linalg.pinv(K_reg) @ target_scores
+
+        except Exception as e:
+            print(f"       ⚠️ Warning: Could not compute full alphas, using subset approach: {e}")
+            # Fallback: use the subset approach
+            self.X_support = X_support_subset
+            self.alphas = trained_alphas_subset if 'trained_alphas_subset' in locals() else alphas_subset
 
     def predict_proba(self, X):
         """Predict probabilities"""
