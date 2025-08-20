@@ -1,10 +1,8 @@
 """
-Streamlined Model Performance Visualization Module
-
 This module provides essential visualization functions for machine learning model evaluation:
 1. Training loss curves
 2. Performance metrics comparison
-3. Confusion matrices (2x2 without accuracy)
+3. Confusion matrices
 4. ROC curves comparison
 5. Precision-recall curves comparison
 """

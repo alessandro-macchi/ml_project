@@ -1,5 +1,5 @@
-from src.metrics import comprehensive_evaluation
-from src.grid_search import grid_search
+from core.metrics import comprehensive_evaluation
+from core.cross_validation import grid_search
 import numpy as np
 
 
@@ -59,9 +59,7 @@ class LogisticRegressionScratch:
 
 
 def run_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print("🔍 Grid search for Logistic Regression...")
     best_params, best_score = grid_search(X_train, y_train, LogisticRegressionScratch, param_grid)
-    print(f"✅ Best LR params: {best_params}, CV Accuracy: {best_score:.4f}")
 
     model = LogisticRegressionScratch(random_state=24, **best_params)
     model.fit(X_train, y_train)

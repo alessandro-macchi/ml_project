@@ -1,7 +1,8 @@
-from src.metrics import comprehensive_evaluation
-from src.grid_search import grid_search
+from core.metrics import comprehensive_evaluation
+from core.cross_validation import grid_search
+from core.math_utils import sigmoid
 import numpy as np
-from src.utils import sigmoid
+
 
 
 class KernelLogisticRegression:
@@ -232,9 +233,7 @@ class KernelLogisticRegression:
 
 
 def run_kernel_logistic_regression_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print("🔍 Grid search for Kernel Logistic Regression...")
     best_params, best_score = grid_search(X_train, y_train, KernelLogisticRegression, param_grid)
-    print(f"✅ Best KLR params: {best_params}, CV Accuracy: {best_score:.4f}")
 
     model = KernelLogisticRegression(
         kernel=best_params["kernel"],

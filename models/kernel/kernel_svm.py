@@ -1,7 +1,7 @@
-from src.metrics import comprehensive_evaluation
-from src.grid_search import grid_search
+from core.metrics import comprehensive_evaluation
+from core.cross_validation import grid_search
+from core.math_utils import sigmoid
 import numpy as np
-from src.utils import sigmoid
 
 
 class KernelPegasosSVM:
@@ -231,9 +231,7 @@ class KernelPegasosSVM:
 
 
 def run_kernel_svm_experiment(X_train, y_train, X_test, y_test, param_grid):
-    print("🔍 Grid search for Kernel SVM (Pegasos)...")
     best_params, best_score = grid_search(X_train, y_train, KernelPegasosSVM, param_grid)
-    print(f"✅ Best KSVM params: {best_params}, CV Accuracy: {best_score:.4f}")
 
     model = KernelPegasosSVM(
         kernel=best_params["kernel"],

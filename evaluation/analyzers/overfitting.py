@@ -1,22 +1,3 @@
-"""
-Streamlined Overfitting and Underfitting Analysis Module
-
-This module provides focused analysis to detect and visualize overfitting/underfitting
-through learning curves only. Removed complexity analysis, detailed diagnostics,
-and file export functionality.
-
-Usage:
-    from src.overfitting_analysis import OverfittingAnalyzer, integrate_overfitting_analysis
-
-    # Direct usage
-    analyzer = OverfittingAnalyzer()
-    analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test)
-    analyzer.plot_learning_curves(save_plots=True)
-
-    # Integrated usage (recommended)
-    analyzer = integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test)
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
