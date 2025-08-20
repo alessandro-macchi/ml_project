@@ -27,7 +27,7 @@ class ModelVisualizer:
         """Initialize the visualizer with directory management"""
         if save_dir is None:
             try:
-                from src.save import get_directory_manager
+                from utils.directory_management import get_directory_manager
                 dir_manager = get_directory_manager()
                 self.save_dir = dir_manager.plots_dir
                 print(f"📁 Using centralized plots directory: {self.save_dir}")

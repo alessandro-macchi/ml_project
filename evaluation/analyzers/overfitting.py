@@ -18,7 +18,7 @@ class OverfittingAnalyzer:
         """Initialize analyzer with directory management"""
         if save_dir is None:
             try:
-                from src.save import get_directory_manager
+                from utils.directory_management import get_directory_manager
                 dir_manager = get_directory_manager()
                 self.save_dir = dir_manager.plots_dir
                 print(f"📁 Using centralized plots directory: {self.save_dir}")
@@ -135,19 +135,19 @@ class OverfittingAnalyzer:
         try:
             # Import models from the existing structure
             if 'lr' in model_key.lower():
-                from models.logistic.base_logistic import LogisticRegressionScratch
+                from models.linear.logistic_regression import LogisticRegressionScratch
                 return LogisticRegressionScratch(
                     learning_rate=getattr(original_model, 'learning_rate', 0.1),
                     regularization_strength=getattr(original_model, 'lambda_', 0.01),
                     epochs=min(200, getattr(original_model, 'epochs', 500))  # Reduce for speed
                 )
             elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
-                from models.svm.base_svm import SVMClassifierScratch
+                from models.linear.svm import SVMClassifierScratch
                 return SVMClassifierScratch(
                     lambda_=getattr(original_model, 'lambda_', 0.01)
                 )
             elif 'klr' in model_key.lower():
-                from models.logistic.kernel_logistic import KernelLogisticRegression
+                from models.kernel.kernel_logistic import KernelLogisticRegression
                 return KernelLogisticRegression(
                     kernel=getattr(original_model, 'kernel', None),
                     lambda_=getattr(original_model, 'lambda_', 0.01),
@@ -156,7 +156,7 @@ class OverfittingAnalyzer:
                     batch_size=32
                 )
             elif 'ksvm' in model_key.lower():
-                from models.svm.base_svm import KernelPegasosSVM
+                from models.kernel.kernel_svm import KernelPegasosSVM
                 return KernelPegasosSVM(
                     kernel=getattr(original_model, 'kernel', None),
                     lambda_=getattr(original_model, 'lambda_', 0.01),
