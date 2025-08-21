@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn.metrics import accuracy_score
-from core.kernels import NamedKernel
 import time
+from sklearn.metrics import accuracy_score
+from .kernels import NamedKernel
 
 
 def cross_validate(X, y, model_class, model_params, k_folds=5, epochs=1000):

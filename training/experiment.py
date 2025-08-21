@@ -1,6 +1,6 @@
-from data_processing.preprocessing import preprocess_features
-from training.model_training import train_all_models
-from evaluation.analyzers.run_analysis import run_comprehensive_analysis
+from data_processing import preprocess_features
+from .model_training import train_all_models
+from evaluation import run_comprehensive_analysis
 
 
 def run_experiment(data, experiment_name=""):

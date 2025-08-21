@@ -1,7 +1,6 @@
-from utils.directory_management import save_results
+from utils import save_results, get_model_names
 from evaluation.visualizers.plots import create_model_visualizations
-from utils.name_display import get_model_names
-from evaluation.analyzers.overfitting import integrate_overfitting_analysis
+from .overfitting import integrate_overfitting_analysis
 
 
 def run_comprehensive_analysis(results, trained_models, X_train, y_train, X_test, y_test, experiment_name):

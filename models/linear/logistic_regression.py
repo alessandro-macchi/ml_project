@@ -1,5 +1,4 @@
-from core.metrics import comprehensive_evaluation
-from core.cross_validation import grid_search
+from core import comprehensive_evaluation, grid_search
 import numpy as np
 
 

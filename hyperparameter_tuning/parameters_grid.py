@@ -1,4 +1,3 @@
-from core.kernels import create_named_kernels
 
 def get_parameter_grids():
     """

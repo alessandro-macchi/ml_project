@@ -1,7 +1,4 @@
-from models.linear.logistic_regression import LogisticRegressionScratch
-from models.linear.svm import SVMClassifierScratch
-from models.kernel.kernel_logistic import KernelLogisticRegression
-from models.kernel.kernel_svm import KernelPegasosSVM
+from models import LogisticRegressionScratch, SVMClassifierScratch, KernelLogisticRegression, KernelPegasosSVM
 from hyperparameter_tuning import get_parameter_grids
 
 

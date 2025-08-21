@@ -1,6 +1,5 @@
 import os
-from utils.directory_management import get_directory_manager
-from utils.name_display import get_model_names
+from utils import get_directory_manager, get_model_names
 from datetime import datetime
 
 

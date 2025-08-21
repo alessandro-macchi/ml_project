@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from data_processing.splitting import custom_train_test_split, generate_synthetic_samples
+from .splitting import custom_train_test_split, generate_synthetic_samples
 
 
 def log_transform(df: pd.DataFrame, columns: list) -> pd.DataFrame:
