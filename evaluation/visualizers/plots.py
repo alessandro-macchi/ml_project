@@ -14,6 +14,7 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_c
 import warnings
 import os
 from datetime import datetime
+from utils import get_model_names
 
 warnings.filterwarnings('ignore')
 plt.style.use('default')
@@ -299,9 +300,162 @@ class ModelVisualizer:
         plt.tight_layout()
         plt.show()
 
+    def plot_misclassifications(self, X_test, y_test, feature_names=None, figsize=(12, 8), save_plots=False):
+        """Analyze misclassified examples to understand model limitations"""
+        print("🔍 Creating Misclassification Analysis...")
+        self._save_enabled = save_plots
+
+        # Convert data to arrays
+        if hasattr(X_test, 'values'):
+            X_test_array = X_test.values
+            if feature_names is None:
+                feature_names = X_test.columns.tolist()
+        else:
+            X_test_array = np.array(X_test)
+
+        if hasattr(y_test, 'values'):
+            y_test_array = y_test.values
+        else:
+            y_test_array = np.array(y_test)
+
+        if feature_names is None:
+            feature_names = [f'feature_{i}' for i in range(X_test_array.shape[1])]
+
+        # Analyze each model
+        n_models = len(self.models)
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        axes = axes.flatten()
+
+        for i, (model_key, model) in enumerate(self.models.items()):
+            if i >= 4:  # Max 4 models for 2x2 grid
+                break
+
+            ax = axes[i]
+            y_pred = model.predict(X_test)
+
+            # Find misclassified examples
+            misclassified_mask = (y_pred != y_test_array)
+
+            if not np.any(misclassified_mask):
+                ax.text(0.5, 0.5, 'No Misclassifications!',
+                        transform=ax.transAxes, ha='center', va='center',
+                        fontsize=12, fontweight='bold')
+                ax.set_title(f'{self.model_names[model_key]}', fontweight='bold')
+                continue
+
+            # Get misclassified examples
+            X_misclassified = X_test_array[misclassified_mask]
+            y_true_misc = y_test_array[misclassified_mask]
+            y_pred_misc = y_pred[misclassified_mask]
+
+            # Feature importance analysis for misclassified examples
+            feature_importance = self._analyze_feature_patterns(
+                X_misclassified, y_true_misc, y_pred_misc, feature_names
+            )
+
+            # Plot feature importance for misclassifications
+            top_features = feature_importance[:8]  # Top 8 features
+            feature_names_short = [name[:15] + '...' if len(name) > 15 else name
+                                   for name, _ in top_features]
+            importances = [imp for _, imp in top_features]
+
+            bars = ax.barh(range(len(top_features)), importances, alpha=0.7)
+            ax.set_yticks(range(len(top_features)))
+            ax.set_yticklabels(feature_names_short, fontsize=9)
+            ax.set_xlabel('Misclassification Pattern Score', fontsize=10)
+
+            model_name = self.model_names[model_key]
+            n_misc = len(X_misclassified)
+            total = len(y_test_array)
+            ax.set_title(f'{model_name}\n{n_misc}/{total} misclassified ({n_misc / total:.1%})',
+                         fontweight='bold', fontsize=11)
+
+            # Add value labels
+            for j, bar in enumerate(bars):
+                width = bar.get_width()
+                ax.text(width + 0.01 * max(importances), bar.get_y() + bar.get_height() / 2,
+                        f'{width:.2f}', ha='left', va='center', fontsize=8)
+
+            ax.grid(True, alpha=0.3, axis='x')
+
+        # Hide unused subplots
+        for i in range(len(self.models), len(axes)):
+            axes[i].set_visible(False)
+
+        plt.tight_layout()
+        plt.suptitle('Misclassification Analysis - Feature Patterns',
+                     fontsize=16, fontweight='bold', y=1.02)
+
+        if save_plots:
+            self._save_figure("misclassification_analysis")
+
+        plt.show()
+
+    def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names):
+        """Analyze feature patterns in misclassified examples"""
+        feature_scores = []
+        for i, feature_name in enumerate(feature_names):
+            feature_values = X_misclassified[:, i]
+            std_dev = np.std(feature_values)
+            range_val = np.ptp(feature_values)
+            mean_abs = np.mean(np.abs(feature_values))
+            importance_score = std_dev * 0.4 + range_val * 0.3 + mean_abs * 0.3
+            feature_scores.append((feature_name, importance_score))
+        feature_scores.sort(key=lambda x: x[1], reverse=True)
+        return feature_scores
+
+    def plot_loss_curves(self, save_plots=True):
+        """Plot training loss curves for all models that track losses"""
+        print("📈 Creating Loss Curves Analysis...")
+        self._save_enabled = save_plots
+
+        # Extract models with loss tracking
+        models_with_losses = {}
+        for model_key, model in self.models.items():
+            if hasattr(model, 'losses') and model.losses:
+                models_with_losses[model_key] = model.losses
+
+        if not models_with_losses:
+            print("❌ No models with loss tracking found")
+            return None
+
+        # Create the plot
+        plt.figure(figsize=(12, 8))
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+
+        for i, (model_key, losses) in enumerate(models_with_losses.items()):
+            model_name = self.model_names[model_key]
+            color = colors[i % len(colors)]
+
+            epochs = range(1, len(losses) + 1)
+            plt.plot(epochs, losses, color=color, linewidth=2.5,
+                     label=model_name, marker='o', markersize=2, alpha=0.8)
+
+            final_loss = losses[-1]
+            plt.annotate(f'{final_loss:.4f}',
+                         xy=(len(losses), final_loss),
+                         xytext=(5, 0), textcoords="offset points",
+                         ha='left', va='center', fontsize=9,
+                         color=color, fontweight='bold')
+
+        plt.xlabel('Epoch', fontsize=12, fontweight='bold')
+        plt.ylabel('Loss', fontsize=12, fontweight='bold')
+        plt.title('Training Loss Curves Comparison', fontsize=14, fontweight='bold')
+        plt.legend(loc='upper right', fontsize=10)
+        plt.grid(True, alpha=0.3)
+        plt.yscale('log')
+
+        plt.tight_layout()
+
+        if save_plots:
+            self._save_figure("loss_curves")
+
+        plt.show()
+        return True
+
     def create_essential_plots(self, X_test, y_test, save_plots=True, save_dir=None):
         """Generate all essential visualization plots"""
-        print("\n🎨 GENERATING ESSENTIAL MODEL VISUALIZATIONS")
+        print("\n🎨 Generating Model Visualizations")
         print("=" * 60)
 
         if save_dir:
@@ -325,6 +479,12 @@ class ModelVisualizer:
 
             print("\n5. Precision-Recall Curves")
             self.plot_precision_recall_curves(X_test, y_test, save_plots=save_plots)
+
+            print("\n6. Misclassification Analysis")
+            self.plot_misclassifications(X_test, y_test, save_plots=save_plots)
+
+            print("\n7. Loss Curves")
+            self.plot_loss_curves(save_plots=save_plots)
 
             print("\n✅ All essential visualizations generated successfully!")
 
