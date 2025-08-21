@@ -90,23 +90,33 @@ class OverfittingAnalyzer:
                 if n_train < 10:
                     continue
 
-                # CRITICAL FIX: Use different splits for training and evaluation
-                # Split the training data into train_subset and train_validation
+                # CRITICAL FIX: Create proper train/validation split
+                # Use sklearn-style train_test_split approach
                 indices = np.arange(n_samples)
                 np.random.shuffle(indices)
 
-                # Use part for training, part for evaluation
-                train_indices = indices[:n_train]
-                # Use a separate portion for training evaluation (not the same data!)
-                eval_train_size = min(n_train, 200)  # Cap evaluation size for efficiency
-                eval_train_indices = indices[:eval_train_size]
+                # Split: 80% for training subset, 20% for training evaluation
+                split_point = int(0.8 * n_train)
+                train_indices = indices[:split_point]
+                train_eval_indices = indices[split_point:n_train]
+
+                # Ensure we have enough data for evaluation
+                if len(train_eval_indices) < 5:
+                    # If not enough data for separate evaluation, use original approach
+                    # but with smaller evaluation set to reduce overlap
+                    train_indices = indices[:n_train]
+                    eval_size = min(50, n_train // 4)  # Use 25% or max 50 samples
+                    train_eval_indices = indices[n_train:n_train + eval_size]
+
+                    # If we don't have enough remaining data, skip this size
+                    if len(train_eval_indices) < 5:
+                        continue
 
                 X_train_subset = self.X_train[train_indices]
                 y_train_subset = self.y_train[train_indices]
 
-                # Separate data for training evaluation
-                X_train_eval = self.X_train[eval_train_indices]
-                y_train_eval = self.y_train[eval_train_indices]
+                X_train_eval = self.X_train[train_eval_indices]
+                y_train_eval = self.y_train[train_eval_indices]
 
                 try:
                     # Create fresh model instance
@@ -114,7 +124,7 @@ class OverfittingAnalyzer:
                     if hasattr(subset_model, 'fit'):
                         subset_model.fit(X_train_subset, y_train_subset)
 
-                    # FIXED: Evaluate on separate portions of training data
+                    # Evaluate on separate training evaluation set and validation set
                     train_pred = subset_model.predict(X_train_eval)
                     val_pred = subset_model.predict(self.X_test)
 
@@ -123,7 +133,7 @@ class OverfittingAnalyzer:
 
                     train_scores.append(train_acc)
                     val_scores.append(val_acc)
-                    actual_train_sizes.append(n_train)
+                    actual_train_sizes.append(len(train_indices))  # Use actual training size
 
                 except Exception as e:
                     print(f"       ⚠️ Error at train_size {train_size}: {e}")
@@ -144,12 +154,47 @@ class OverfittingAnalyzer:
             return {'available': False, 'error': str(e)}
 
     def _create_fresh_model(self, model_key, original_model):
-        """Return a model with exactly the same parameters as the tuned/trained model"""
+        """Create a fresh instance of the model with same parameters"""
         try:
-            import copy
-            return copy.deepcopy(original_model)
-        except Exception as e:
-            print(f"⚠️ Could not copy model {model_key}: {e}")
+            # Import models from the existing structure
+            if 'lr' in model_key.lower():
+                from models.linear.logistic_regression import LogisticRegressionScratch
+                return LogisticRegressionScratch(
+                    learning_rate=getattr(original_model, 'learning_rate', 0.1),
+                    regularization_strength=getattr(original_model, 'lambda_', 0.01),
+                    epochs=min(200, getattr(original_model, 'epochs', 500)),  # Reduce for speed
+                    random_state=np.random.randint(0, 10000)  # Different random state
+                )
+            elif 'svm' in model_key.lower() and 'kernel' not in model_key.lower():
+                from models.linear.svm import SVMClassifierScratch
+                return SVMClassifierScratch(
+                    lambda_=getattr(original_model, 'lambda_', 0.01),
+                    random_state=np.random.randint(0, 10000)  # Different random state
+                )
+            elif 'klr' in model_key.lower():
+                from models.kernel.kernel_logistic import KernelLogisticRegression
+                return KernelLogisticRegression(
+                    kernel=getattr(original_model, 'kernel', None),
+                    lambda_=getattr(original_model, 'lambda_', 0.01),
+                    epochs=min(100, getattr(original_model, 'epochs', 200)),  # Reduce for speed
+                    subsample_ratio=0.2,  # Use smaller subset for faster training
+                    batch_size=32,
+                    early_stopping_patience=10,  # Reduce patience for faster training
+                    random_state=np.random.randint(0, 10000)  # Different random state
+                )
+            elif 'ksvm' in model_key.lower():
+                from models.kernel.kernel_svm import KernelPegasosSVM
+                return KernelPegasosSVM(
+                    kernel=getattr(original_model, 'kernel', None),
+                    lambda_=getattr(original_model, 'lambda_', 0.01),
+                    max_iter=min(100, getattr(original_model, 'max_iter', 200)),  # Reduce for speed
+                    random_state=np.random.randint(0, 10000)  # Different random state
+                )
+            else:
+                print(f"     ⚠️ Unknown model type {model_key}, using original")
+                return original_model
+        except ImportError as e:
+            print(f"     ⚠️ Could not import model for {model_key}: {e}")
             return original_model
 
     def _save_plot_safely(self, filename, dpi=300, bbox_inches='tight'):
