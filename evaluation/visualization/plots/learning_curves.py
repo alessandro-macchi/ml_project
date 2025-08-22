@@ -11,7 +11,7 @@ plt.style.use('default')
 sns.set_palette("husl")
 
 
-class OverfittingAnalyzer:
+class LearningCurveAnalyzer:
     """Streamlined overfitting analysis focused on learning curves"""
 
     def __init__(self, save_dir=None):
@@ -298,3 +298,34 @@ class OverfittingAnalyzer:
         if save_plots:
             self._save_plot_safely('learning_curves')
         plt.show()
+
+
+def integrate_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test, model_names, save_plots=True,
+                                   save_dir=None):
+    """
+    Integration function for existing project structure
+
+    Args:
+        trained_models (dict): Dictionary of trained models
+        X_train, y_train: Training data
+        X_test, y_test: Test data
+        model_names (dict): Model display names
+        save_plots (bool): Whether to save plots
+        save_dir (str): Directory to save plots
+
+    Returns:
+        LearningCurveAnalyzer: Analyzer with learning curve analysis
+    """
+    print("🔗 INTEGRATING LEARNING CURVE ANALYSIS")
+    print("=" * 40)
+
+    # Create analyzer with centralized directory management
+    analyzer = LearningCurveAnalyzer(save_dir=save_dir)
+
+    # Run analysis
+    analyzer.analyze_all_models(trained_models, X_train, y_train, X_test, y_test, model_names)
+
+    # Create learning curve plots
+    analyzer.plot_learning_curves(save_plots=save_plots)
+
+    return analyzer

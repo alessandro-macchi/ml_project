@@ -12,6 +12,11 @@ import seaborn as sns
 import warnings
 import os
 from datetime import datetime
+from .plots.diagnostic_plots import plot_roc_curves, plot_precision_recall_curves
+from .plots.feature_analysis import plot_misclassifications
+from .plots.loss_curves import plot_loss_curves
+from .plots.performance_metrics import plot_metrics_comparison, plot_confusion_matrices
+from .plots.learning_curves import LearningCurveAnalyzer
 
 warnings.filterwarnings('ignore')
 plt.style.use('default')
@@ -68,6 +73,25 @@ class ModelVisualizer:
         if model_name is None:
             model_name = model_key.replace('_', ' ').title().replace('Custom', '(Custom)')
         self.model_names[model_key] = model_name
+
+    # Add these methods (copy from the individual plot files but fix the 'self' parameter):
+    def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        return plot_roc_curves(self, X_test, y_test, figsize, save_plots)
+
+    def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        return plot_precision_recall_curves(self, X_test, y_test, figsize, save_plots)
+
+    def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=False):
+        return plot_misclassifications(self, X_test, y_test, figsize, save_plots)
+
+    def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
+        return plot_loss_curves(self, figsize, save_plots)
+
+    def plot_metrics_comparison(self, figsize=(15, 7), save_plots=False):
+        return plot_metrics_comparison(self, figsize, save_plots)
+
+    def plot_confusion_matrices(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        return plot_confusion_matrices(self, X_test, y_test, figsize, save_plots)
 
     # Updated create_essential_plots method to properly call the fixed functions
     def create_essential_plots(self, X_test, y_test, save_plots=True, save_dir=None):
@@ -131,36 +155,22 @@ class ModelVisualizer:
 
             print(f"\n🎉 Learning curve analysis complete!")
 
-    def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
+def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
                                        save_plots=True, save_dir=None):
-        """
-        Integration function for existing project structure
 
-        Args:
-            models_dict (dict): Dictionary of trained models
-            X_train, y_train: Training data
-            X_test, y_test: Test data
-            model_names (dict): Optional display names for models
-            save_plots (bool): Whether to save plots
-            save_dir (str): Directory to save plots (if None, uses centralized manager)
+    print("🔗 INTEGRATING LEARNING CURVE ANALYSIS")
+    print("=" * 40)
 
-        Returns:
-            OverfittingAnalyzer: Analyzer with learning curve analysis
-        """
-        print("🔗 INTEGRATING LEARNING CURVE ANALYSIS")
-        print("=" * 40)
+    # Create analyzer with centralized directory management
+    analyzer = LearningCurveAnalyzer(save_dir=save_dir)
 
-        # Create analyzer with centralized directory management
-        analyzer = OverfittingAnalyzer(save_dir=save_dir)
+    # Run analysis
+    analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test, model_names)
 
-        # Run analysis
-        analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test, model_names)
+    # Create learning curve analysis
+    analyzer.create_learning_curve_analysis(save_plots=save_plots)
 
-        # Create learning curve analysis
-        analyzer.create_learning_curve_analysis(save_plots=save_plots)
-
-        return analyzer
-
+    return analyzer
 
 def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None,
                               save_plots=True, save_dir=None):

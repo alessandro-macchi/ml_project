@@ -1,8 +1,8 @@
 import os
 from data_processing.loaders import load_and_combine_data
-from training.experiment import run_experiment
-from evaluation.visualizers.reports import generate_final_summary_report
-from utils.directory_management import reset_directory_manager
+from training import run_experiment
+from evaluation import generate_final_summary_report
+from utils import reset_directory_manager
 
 
 def main():
