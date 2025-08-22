@@ -13,7 +13,7 @@ Key modules:
 """
 
 try:
-    from .plots import ModelVisualizer, create_model_visualizations
+    from .visualizer import ModelVisualizer, create_model_visualizations
     from .reports import generate_final_summary_report
 
     __all__ = [

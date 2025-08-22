@@ -20,16 +20,12 @@ The evaluation pipeline creates:
 
 # Import main evaluation functions
 try:
-    from .analyzers.run_analysis import run_comprehensive_analysis
-    from .analyzers.overfitting import integrate_overfitting_analysis
-    from .visualizers.plots import create_model_visualizations
-    from .visualizers.reports import generate_final_summary_report
+    from .analyzers. import run_comprehensive_analysis, run_visualizations, run_overfitting_analysis
 
     __all__ = [
         'run_comprehensive_analysis',
-        'create_model_visualizations',
-        'generate_final_summary_report',
-        'integrate_overfitting_analysis'
+        'run_visualizations',
+        'run_overfitting_analysis'
     ]
 except ImportError:
     # Handle case where some dependencies might not be available
