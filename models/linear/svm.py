@@ -16,19 +16,19 @@ class SVMClassifierScratch:
         self.weights = None
         self.bias = 0
         self.random_state = np.random.RandomState(random_state)
+        self.losses = []  # ADD THIS LINE to track losses
 
     def fit(self, X, y, max_iter=1000):
         X = np.array(X)
         y = np.array(y)
 
         n_samples, n_features = X.shape
-
-        # ✅ Use model's random state for weight initialization
         self.weights = self.random_state.normal(0, 0.01, n_features)
         self.bias = 0
+        self.losses = []  # RESET losses for new training
 
         for t in range(1, max_iter + 1):
-            # ✅ Use model's random state for sample selection
+            # Sample a random training example
             i = self.random_state.randint(0, n_samples)
             x_i = X[i]
             y_i = y[i]
@@ -41,6 +41,20 @@ class SVMClassifierScratch:
                 self.bias += eta * y_i
             else:
                 self.weights = (1 - eta * self.lambda_) * self.weights
+
+            # ADD LOSS COMPUTATION: Compute SVM hinge loss every few iterations
+            if t % 50 == 0 or t == max_iter:  # Every 50 iterations to avoid slowdown
+                # Compute hinge loss: max(0, 1 - y_i * (w^T x_i + b))
+                scores = np.dot(X, self.weights) + self.bias
+                margins = y * scores
+                hinge_losses = np.maximum(0, 1 - margins)
+                avg_hinge_loss = np.mean(hinge_losses)
+
+                # Add regularization term: λ/2 * ||w||²
+                reg_loss = (self.lambda_ / 2) * np.sum(self.weights ** 2)
+                total_loss = avg_hinge_loss + reg_loss
+
+                self.losses.append(total_loss)
 
     def predict(self, X):
         X = np.array(X)

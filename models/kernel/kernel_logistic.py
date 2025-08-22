@@ -17,6 +17,7 @@ class KernelLogisticRegression:
         self.best_loss = float('inf')
         self.patience_counter = 0
         self.random_state = np.random.RandomState(random_state)
+        self.losses = []
 
     def _compute_kernel_matrix(self, X1, X2=None):
         """Highly optimized kernel matrix computation - NO nested loops!"""
@@ -123,6 +124,9 @@ class KernelLogisticRegression:
         self.X_train_original = X.copy()
         self.y_train_original = y.copy()
 
+        # Initialize losses tracking
+        self.losses = []
+
         # Subsample support vectors for efficiency during training
         X_support_subset, support_indices = self._subsample_support_vectors(X)
         n_support = X_support_subset.shape[0]
@@ -166,6 +170,7 @@ class KernelLogisticRegression:
                 n_batches += 1
 
                 # Compute gradients for margin-based loss
+                from core import sigmoid  # Import sigmoid function
                 sigmoid_margins = sigmoid(margins)
                 gradient_factor = -y_batch * sigmoid_margins
                 gradients = K_batch.T @ gradient_factor / len(y_batch) + 2 * self.lambda_ * alphas_subset
@@ -177,6 +182,7 @@ class KernelLogisticRegression:
                 alphas_subset -= learning_rate * gradients
 
             avg_loss = epoch_loss / n_batches
+            self.losses.append(avg_loss)  # TRACK LOSS FOR EACH EPOCH
 
             # Early stopping
             if avg_loss < self.best_loss:

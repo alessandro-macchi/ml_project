@@ -14,7 +14,6 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_c
 import warnings
 import os
 from datetime import datetime
-from utils import get_model_names
 
 warnings.filterwarnings('ignore')
 plt.style.use('default')
@@ -28,7 +27,7 @@ class ModelVisualizer:
         """Initialize the visualizer with directory management"""
         if save_dir is None:
             try:
-                from utils.directory_management import get_directory_manager
+                from utils import get_directory_manager
                 dir_manager = get_directory_manager()
                 self.save_dir = dir_manager.plots_dir
                 print(f"📁 Using centralized plots directory: {self.save_dir}")
@@ -300,42 +299,29 @@ class ModelVisualizer:
         plt.tight_layout()
         plt.show()
 
-    def plot_misclassifications(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+    def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=False):
         """
         Analyze misclassified examples to understand model limitations
 
         Args:
-            trained_models (dict): Dictionary of trained models
             X_test: Test features
             y_test: Test labels
-            feature_names (list): Names of features for analysis
+            figsize: Figure size for the plot
             save_plots (bool): Whether to save plots
-            save_dir (str): Directory to save plots (if None, uses centralized manager)
 
         Returns:
             str: Path to saved plot or None
         """
         print("🔍 Creating Misclassification Analysis...")
-
-        # Setup directory management
-        if save_dir is None:
-            try:
-                from utils.directory_management import get_directory_manager
-                dir_manager = get_directory_manager()
-                save_dir = dir_manager.plots_dir
-                print(f"📁 Using centralized plots directory: {save_dir}")
-            except ImportError:
-                save_dir = "output/evaluation_plots"
-                os.makedirs(save_dir, exist_ok=True)
-                print(f"📁 Using fallback directory: {save_dir}")
+        self._save_enabled = save_plots
 
         # Convert data to arrays
         if hasattr(X_test, 'values'):
             X_test_array = X_test.values
-            if feature_names is None:
-                feature_names = X_test.columns.tolist()
+            feature_names = X_test.columns.tolist() if hasattr(X_test, 'columns') else None
         else:
             X_test_array = np.array(X_test)
+            feature_names = None
 
         if hasattr(y_test, 'values'):
             y_test_array = y_test.values
@@ -346,14 +332,27 @@ class ModelVisualizer:
             feature_names = [f'feature_{i}' for i in range(X_test_array.shape[1])]
 
         # Analyze each model
-        n_models = len(trained_models)
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        axes = axes.flatten()
+        n_models = len(self.models)
+        if n_models == 0:
+            print("❌ No models available for misclassification analysis")
+            return None
 
-        model_keys = list(trained_models.keys())
+        # Create subplot grid
+        cols = 2
+        rows = (n_models + cols - 1) // cols
+        fig, axes = plt.subplots(rows, cols, figsize=figsize)
 
-        for i, (model_key, model) in enumerate(trained_models.items()):
-            if i >= 4:  # Max 4 models for 2x2 grid
+        if n_models == 1:
+            axes = [axes]
+        elif rows == 1 and n_models > 1:
+            axes = list(axes)
+        else:
+            axes = axes.flatten() if n_models > 1 else [axes]
+
+        model_keys = list(self.models.keys())
+
+        for i, (model_key, model) in enumerate(self.models.items()):
+            if i >= len(axes):  # Safety check
                 break
 
             ax = axes[i]
@@ -368,7 +367,10 @@ class ModelVisualizer:
                 ax.text(0.5, 0.5, 'No Misclassifications!',
                         transform=ax.transAxes, ha='center', va='center',
                         fontsize=12, fontweight='bold')
-                ax.set_title(f'{get_model_names(model_key)}', fontweight='bold')
+                model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
+                ax.set_title(f'{model_name}', fontweight='bold')
+                ax.set_xticks([])
+                ax.set_yticks([])
                 continue
 
             # Get misclassified examples
@@ -377,7 +379,7 @@ class ModelVisualizer:
             y_pred_misc = y_pred[misclassified_mask]
 
             # Feature importance analysis for misclassified examples
-            feature_importance = _analyze_feature_patterns(
+            feature_importance = self._analyze_feature_patterns(
                 X_misclassified, y_true_misc, y_pred_misc, feature_names
             )
 
@@ -387,28 +389,31 @@ class ModelVisualizer:
                                    for name, _ in top_features]
             importances = [imp for _, imp in top_features]
 
-            bars = ax.barh(range(len(top_features)), importances, alpha=0.7)
-            ax.set_yticks(range(len(top_features)))
-            ax.set_yticklabels(feature_names_short, fontsize=9)
-            ax.set_xlabel('Misclassification Pattern Score', fontsize=10)
+            if importances:  # Only plot if we have importance values
+                bars = ax.barh(range(len(top_features)), importances, alpha=0.7)
+                ax.set_yticks(range(len(top_features)))
+                ax.set_yticklabels(feature_names_short, fontsize=9)
+                ax.set_xlabel('Misclassification Pattern Score', fontsize=10)
 
-            model_name = _get_model_display_name(model_key)
+                # Add value labels
+                max_importance = max(importances) if importances else 1
+                for j, bar in enumerate(bars):
+                    width = bar.get_width()
+                    ax.text(width + 0.01 * max_importance, bar.get_y() + bar.get_height() / 2,
+                            f'{width:.2f}', ha='left', va='center', fontsize=8)
+
+                ax.grid(True, alpha=0.3, axis='x')
+
+            model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
             n_misc = len(X_misclassified)
             total = len(y_test_array)
             ax.set_title(f'{model_name}\n{n_misc}/{total} misclassified ({n_misc / total:.1%})',
                          fontweight='bold', fontsize=11)
 
-            # Add value labels
-            for j, bar in enumerate(bars):
-                width = bar.get_width()
-                ax.text(width + 0.01 * max(importances), bar.get_y() + bar.get_height() / 2,
-                        f'{width:.2f}', ha='left', va='center', fontsize=8)
-
-            ax.grid(True, alpha=0.3, axis='x')
-
         # Hide unused subplots
-        for i in range(len(trained_models), len(axes)):
-            axes[i].set_visible(False)
+        for i in range(len(self.models), len(axes)):
+            if i < len(axes):
+                axes[i].set_visible(False)
 
         plt.tight_layout()
         plt.suptitle('Misclassification Analysis - Feature Patterns',
@@ -417,23 +422,25 @@ class ModelVisualizer:
         # Save plot
         saved_path = None
         if save_plots:
-            saved_path = _save_plot_safely(save_dir, 'misclassification_analysis')
+            saved_path = self._save_figure('misclassification_analysis')
 
         plt.show()
 
         # Print summary statistics
-        _print_misclassification_summary(trained_models, X_test_array, y_test_array)
+        self._print_misclassification_summary(X_test_array, y_test_array)
 
         return saved_path
 
-    def _analyze_feature_patterns(X_misclassified, y_true, y_pred, feature_names):
+    def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names):
         """Analyze feature patterns in misclassified examples"""
-
-        # Calculate feature statistics for misclassified examples
         feature_scores = []
 
         for i, feature_name in enumerate(feature_names):
             feature_values = X_misclassified[:, i]
+
+            if len(feature_values) == 0:
+                feature_scores.append((feature_name, 0.0))
+                continue
 
             # Calculate various pattern indicators
             std_dev = np.std(feature_values)
@@ -451,35 +458,40 @@ class ModelVisualizer:
 
         return feature_scores
 
-    def plot_loss_curves(trained_models, save_plots=True, save_dir=None):
+    def _print_misclassification_summary(self, X_test_array, y_test_array):
+        """Print summary statistics for misclassifications"""
+        print("\n📊 MISCLASSIFICATION SUMMARY")
+        print("-" * 50)
+
+        for model_key, model in self.models.items():
+            try:
+                y_pred = model.predict(X_test_array)
+                misclassified_mask = (y_pred != y_test_array)
+                n_misc = np.sum(misclassified_mask)
+                total = len(y_test_array)
+                model_name = self.model_names.get(model_key, model_key)
+
+                print(f"{model_name}: {n_misc}/{total} ({n_misc / total:.1%}) misclassified")
+            except Exception as e:
+                print(f"{model_key}: Error computing misclassifications - {e}")
+
+    def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
         """
         Plot training loss curves for all models that track losses
 
         Args:
-            trained_models (dict): Dictionary of trained models
+            figsize: Figure size for the plot
             save_plots (bool): Whether to save plots
-            save_dir (str): Directory to save plots (if None, uses centralized manager)
 
         Returns:
             str: Path to saved plot or None
         """
         print("📈 Creating Loss Curves Analysis...")
-
-        # Setup directory management
-        if save_dir is None:
-            try:
-                from utils.directory_management import get_directory_manager
-                dir_manager = get_directory_manager()
-                save_dir = dir_manager.plots_dir
-                print(f"📁 Using centralized plots directory: {save_dir}")
-            except ImportError:
-                save_dir = "output/evaluation_plots"
-                os.makedirs(save_dir, exist_ok=True)
-                print(f"📁 Using fallback directory: {save_dir}")
+        self._save_enabled = save_plots
 
         # Extract models with loss tracking
         models_with_losses = {}
-        for model_key, model in trained_models.items():
+        for model_key, model in self.models.items():
             if hasattr(model, 'losses') and model.losses:
                 models_with_losses[model_key] = model.losses
 
@@ -488,12 +500,12 @@ class ModelVisualizer:
             return None
 
         # Create the plot
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=figsize)
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 
         for i, (model_key, losses) in enumerate(models_with_losses.items()):
             # Get model display name
-            model_name = _get_model_display_name(model_key)
+            model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
             color = colors[i % len(colors)]
 
             epochs = range(1, len(losses) + 1)
@@ -520,11 +532,12 @@ class ModelVisualizer:
         # Save plot
         saved_path = None
         if save_plots:
-            saved_path = _save_plot_safely(save_dir, 'loss_curves')
+            saved_path = self._save_figure('loss_curves')
 
         plt.show()
         return saved_path
 
+    # Updated create_essential_plots method to properly call the fixed functions
     def create_essential_plots(self, X_test, y_test, save_plots=True, save_dir=None):
         """Generate all essential visualization plots"""
         print("\n🎨 GENERATING ESSENTIAL MODEL VISUALIZATIONS")
@@ -540,23 +553,23 @@ class ModelVisualizer:
             print(f"💾 Plots will be saved to: {os.path.abspath(self.save_dir)}")
 
         try:
-            print("\n2. Performance Metrics Comparison")
+            print("\n1. Performance Metrics Comparison")
             self.plot_metrics_comparison(save_plots=save_plots)
 
-            print("\n3. Confusion Matrices")
+            print("\n2. Confusion Matrices")
             self.plot_confusion_matrices(X_test, y_test, save_plots=save_plots)
 
-            print("\n4. ROC Curves")
+            print("\n3. ROC Curves")
             self.plot_roc_curves(X_test, y_test, save_plots=save_plots)
 
-            print("\n5. Precision-Recall Curves")
+            print("\n4. Precision-Recall Curves")
             self.plot_precision_recall_curves(X_test, y_test, save_plots=save_plots)
 
-            print("\n6. Misclassification Analysis")
+            print("\n5. Misclassification Analysis")
             self.plot_misclassifications(X_test, y_test, save_plots=save_plots)
 
-            print("\n7. Loss Curves")
-            self.plot_loss_curves()
+            print("\n6. Loss Curves")
+            self.plot_loss_curves(save_plots=save_plots)
 
             print("\n✅ All essential visualizations generated successfully!")
 
