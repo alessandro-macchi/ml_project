@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=False):
+def plot_misclassifications(visualizer_self, X_test, y_test, figsize=(16, 12), save_plots=False):
     """
     Analyze misclassified examples to understand model limitations
 
@@ -15,7 +15,7 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
         str: Path to saved plot or None
     """
     print("🔍 Creating Misclassification Analysis...")
-    self._save_enabled = save_plots
+    visualizer_self._save_enabled = save_plots
 
     # Convert data to arrays
     if hasattr(X_test, 'values'):
@@ -34,7 +34,7 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
         feature_names = [f'feature_{i}' for i in range(X_test_array.shape[1])]
 
     # Analyze each model
-    n_models = len(self.models)
+    n_models = len(visualizer_self.models)
     if n_models == 0:
         print("❌ No models available for misclassification analysis")
         return None
@@ -51,9 +51,9 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
     else:
         axes = axes.flatten() if n_models > 1 else [axes]
 
-    model_keys = list(self.models.keys())
+    model_keys = list(visualizer_self.models.keys())
 
-    for i, (model_key, model) in enumerate(self.models.items()):
+    for i, (model_key, model) in enumerate(visualizer_self.models.items()):
         if i >= len(axes):  # Safety check
             break
 
@@ -69,7 +69,7 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
             ax.text(0.5, 0.5, 'No Misclassifications!',
                     transform=ax.transAxes, ha='center', va='center',
                     fontsize=12, fontweight='bold')
-            model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
+            model_name = visualizer_self.model_names.get(model_key, model_key).replace(' (Custom)', '')
             ax.set_title(f'{model_name}', fontweight='bold')
             ax.set_xticks([])
             ax.set_yticks([])
@@ -81,8 +81,8 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
         y_pred_misc = y_pred[misclassified_mask]
 
         # Feature importance analysis for misclassified examples
-        feature_importance = self._analyze_feature_patterns(
-            X_misclassified, y_true_misc, y_pred_misc, feature_names
+        feature_importance = _analyze_feature_patterns(
+            visualizer_self, X_misclassified, y_true_misc, y_pred_misc, feature_names
         )
 
         # Plot feature importance for misclassifications
@@ -106,14 +106,14 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
 
             ax.grid(True, alpha=0.3, axis='x')
 
-        model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
+        model_name = visualizer_self.model_names.get(model_key, model_key).replace(' (Custom)', '')
         n_misc = len(X_misclassified)
         total = len(y_test_array)
         ax.set_title(f'{model_name}\n{n_misc}/{total} misclassified ({n_misc / total:.1%})',
                      fontweight='bold', fontsize=11)
 
     # Hide unused subplots
-    for i in range(len(self.models), len(axes)):
+    for i in range(len(visualizer_self.models), len(axes)):
         if i < len(axes):
             axes[i].set_visible(False)
 
@@ -124,16 +124,16 @@ def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=F
     # Save plot
     saved_path = None
     if save_plots:
-        saved_path = self._save_figure('misclassification_analysis')
+        saved_path = visualizer_self._save_figure('misclassification_analysis')
 
     plt.show()
 
     # Print summary statistics
-    self._print_misclassification_summary(X_test_array, y_test_array)
+    _print_misclassification_summary(visualizer_self, X_test_array, y_test_array)
 
     return saved_path
 
-def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names):
+def _analyze_feature_patterns(visualizer_self, X_misclassified, y_true, y_pred, feature_names):
     """Analyze feature patterns in misclassified examples"""
     feature_scores = []
 
@@ -160,18 +160,18 @@ def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_nam
 
     return feature_scores
 
-def _print_misclassification_summary(self, X_test_array, y_test_array):
+def _print_misclassification_summary(visualizer_self, X_test_array, y_test_array):
     """Print summary statistics for misclassifications"""
     print("\n📊 MISCLASSIFICATION SUMMARY")
     print("-" * 50)
 
-    for model_key, model in self.models.items():
+    for model_key, model in visualizer_self.models.items():
         try:
             y_pred = model.predict(X_test_array)
             misclassified_mask = (y_pred != y_test_array)
             n_misc = np.sum(misclassified_mask)
             total = len(y_test_array)
-            model_name = self.model_names.get(model_key, model_key)
+            model_name = visualizer_self.model_names.get(model_key, model_key)
 
             print(f"{model_name}: {n_misc}/{total} ({n_misc / total:.1%}) misclassified")
         except Exception as e:

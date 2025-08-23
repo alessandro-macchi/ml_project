@@ -12,8 +12,10 @@ import seaborn as sns
 import warnings
 import os
 from datetime import datetime
+
+# Import plot functions
 from .plots.diagnostic_plots import plot_roc_curves, plot_precision_recall_curves
-from .plots.feature_analysis import plot_misclassifications
+from .plots.feature_analysis import plot_misclassifications, _analyze_feature_patterns, _print_misclassification_summary
 from .plots.loss_curves import plot_loss_curves
 from .plots.performance_metrics import plot_metrics_comparison, plot_confusion_matrices
 from .plots.learning_curves import LearningCurveAnalyzer
@@ -74,26 +76,40 @@ class ModelVisualizer:
             model_name = model_key.replace('_', ' ').title().replace('Custom', '(Custom)')
         self.model_names[model_key] = model_name
 
-    # Add these methods (copy from the individual plot files but fix the 'self' parameter):
+    # Plot method wrappers that pass self correctly to the modular functions
     def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        """Plot ROC curves for all models"""
         return plot_roc_curves(self, X_test, y_test, figsize, save_plots)
 
     def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        """Plot Precision-Recall curves for all models"""
         return plot_precision_recall_curves(self, X_test, y_test, figsize, save_plots)
 
     def plot_misclassifications(self, X_test, y_test, figsize=(16, 12), save_plots=False):
+        """Analyze misclassified examples to understand model limitations"""
         return plot_misclassifications(self, X_test, y_test, figsize, save_plots)
 
     def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
+        """Plot training loss curves for all models that track losses"""
         return plot_loss_curves(self, figsize, save_plots)
 
     def plot_metrics_comparison(self, figsize=(15, 7), save_plots=False):
+        """Create metrics comparison plots for accuracy, precision/recall, and f1-score"""
         return plot_metrics_comparison(self, figsize, save_plots)
 
     def plot_confusion_matrices(self, X_test, y_test, figsize=(12, 8), save_plots=False):
+        """Plot 2x2 confusion matrices"""
         return plot_confusion_matrices(self, X_test, y_test, figsize, save_plots)
 
-    # Updated create_essential_plots method to properly call the fixed functions
+    # Helper methods for misclassification analysis (wrappers to modular functions)
+    def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names):
+        """Analyze feature patterns in misclassified examples"""
+        return _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names)
+
+    def _print_misclassification_summary(self, X_test_array, y_test_array):
+        """Print summary statistics for misclassifications"""
+        return _print_misclassification_summary(self, X_test_array, y_test_array)
+
     def create_essential_plots(self, X_test, y_test, save_plots=True, save_dir=None):
         """Generate all essential visualization plots"""
         print("\n🎨 GENERATING ESSENTIAL MODEL VISUALIZATIONS")
@@ -127,9 +143,6 @@ class ModelVisualizer:
             print("\n6. Loss Curves")
             self.plot_loss_curves(save_plots=save_plots)
 
-            print("\n7. Learning Curves")
-            self.plot_learning_curves(save_plots=save_plots)
-
             print("\n✅ All essential visualizations generated successfully!")
 
             if save_plots:
@@ -138,39 +151,6 @@ class ModelVisualizer:
         except Exception as e:
             print(f"❌ Error generating visualizations: {e}")
 
-        def create_learning_curve_analysis(self, figsize=(16, 12), save_plots=False):
-            """Create learning curve analysis visualization"""
-            print("\n🎨 CREATING LEARNING CURVE ANALYSIS")
-            print("=" * 45)
-
-            if not self.learning_curves:
-                print("❌ No learning curve data available. Run analyze_all_models() first.")
-                return
-
-            if save_plots:
-                print(f"💾 Plots will be saved to: {os.path.abspath(self.save_dir)}")
-
-            print("\n📈 Generating learning curves...")
-            self.plot_learning_curves(figsize, save_plots)
-
-            print(f"\n🎉 Learning curve analysis complete!")
-
-def integrate_overfitting_analysis(models_dict, X_train, y_train, X_test, y_test, model_names=None,
-                                       save_plots=True, save_dir=None):
-
-    print("🔗 INTEGRATING LEARNING CURVE ANALYSIS")
-    print("=" * 40)
-
-    # Create analyzer with centralized directory management
-    analyzer = LearningCurveAnalyzer(save_dir=save_dir)
-
-    # Run analysis
-    analyzer.analyze_all_models(models_dict, X_train, y_train, X_test, y_test, model_names)
-
-    # Create learning curve analysis
-    analyzer.create_learning_curve_analysis(save_plots=save_plots)
-
-    return analyzer
 
 def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None,
                               save_plots=True, save_dir=None):
@@ -205,5 +185,4 @@ def create_model_visualizations(models_dict, results_dict, X_test, y_test, model
             )
 
     visualizer.create_essential_plots(X_test, y_test, save_plots=save_plots)
-
     return visualizer

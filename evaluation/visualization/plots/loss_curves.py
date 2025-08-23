@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
+def plot_loss_curves(visualizer_self, figsize=(12, 8), save_plots=False):
     """
     Plot training loss curves for all models that track losses
 
@@ -12,11 +12,11 @@ def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
         str: Path to saved plot or None
     """
     print("📈 Creating Loss Curves Analysis...")
-    self._save_enabled = save_plots
+    visualizer_self._save_enabled = save_plots
 
     # Extract models with loss tracking
     models_with_losses = {}
-    for model_key, model in self.models.items():
+    for model_key, model in visualizer_self.models.items():
         if hasattr(model, 'losses') and model.losses:
             models_with_losses[model_key] = model.losses
 
@@ -30,7 +30,7 @@ def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
 
     for i, (model_key, losses) in enumerate(models_with_losses.items()):
         # Get model display name
-        model_name = self.model_names.get(model_key, model_key).replace(' (Custom)', '')
+        model_name = visualizer_self.model_names.get(model_key, model_key).replace(' (Custom)', '')
         color = colors[i % len(colors)]
 
         epochs = range(1, len(losses) + 1)
@@ -57,7 +57,7 @@ def plot_loss_curves(self, figsize=(12, 8), save_plots=False):
     # Save plot
     saved_path = None
     if save_plots:
-        saved_path = self._save_figure('loss_curves')
+        saved_path = visualizer_self._save_figure('loss_curves')
 
     plt.show()
     return saved_path
