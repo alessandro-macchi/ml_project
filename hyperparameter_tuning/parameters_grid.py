@@ -7,8 +7,8 @@ def get_parameter_grids():
     return {
         'logistic_regression': {
             'learning_rate': [0.01, 0.05, 0.08, 0.1, 0.12, 0.15],
-            'regularization_strength': [0.005, 0.01, 0.02, 0.05],
-            'epochs': [1000, 1200, 1500]
+            'regularization_strength': [0.02, 0.05, 0.08, 0.1, 0.15, 0.2], # 0.005, 0.01,
+            'epochs': [150, 300, 400] # 800, 1000, 1200, 1500
         },
         'svm': {
             'lambda_': [0.01, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2],
