@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def plot_misclassifications(visualizer_self, X_test, y_test, figsize=(16, 12), save_plots=False):
     """
     Analyze misclassified examples to understand model limitations
@@ -17,21 +18,18 @@ def plot_misclassifications(visualizer_self, X_test, y_test, figsize=(16, 12), s
     print("🔍 Creating Misclassification Analysis...")
     visualizer_self._save_enabled = save_plots
 
-    # Convert data to arrays
+    # Convert data to arrays and extract feature names
+    feature_names = _extract_feature_names(X_test)
+
     if hasattr(X_test, 'values'):
         X_test_array = X_test.values
-        feature_names = X_test.columns.tolist() if hasattr(X_test, 'columns') else None
     else:
         X_test_array = np.array(X_test)
-        feature_names = None
 
     if hasattr(y_test, 'values'):
         y_test_array = y_test.values
     else:
         y_test_array = np.array(y_test)
-
-    if feature_names is None:
-        feature_names = [f'feature_{i}' for i in range(X_test_array.shape[1])]
 
     # Analyze each model
     n_models = len(visualizer_self.models)
@@ -133,6 +131,66 @@ def plot_misclassifications(visualizer_self, X_test, y_test, figsize=(16, 12), s
 
     return saved_path
 
+
+def _extract_feature_names(X_test):
+    """
+    Extract feature names from various data formats
+
+    Args:
+        X_test: Test features (pandas DataFrame, numpy array, etc.)
+
+    Returns:
+        list: List of feature names
+    """
+    # Try to get feature names from pandas DataFrame
+    if hasattr(X_test, 'columns'):
+        feature_names = X_test.columns.tolist()
+        print(f"📊 Using DataFrame column names: {len(feature_names)} features")
+        return feature_names
+
+    # Try to get feature names from pandas Index
+    elif hasattr(X_test, 'index') and hasattr(X_test.index, 'names'):
+        if X_test.index.names and X_test.index.names[0] is not None:
+            feature_names = list(X_test.index.names)
+            print(f"📊 Using Index names: {len(feature_names)} features")
+            return feature_names
+
+    # Try to infer from shape and create meaningful names
+    if hasattr(X_test, 'shape'):
+        n_features = X_test.shape[1] if len(X_test.shape) > 1 else len(X_test)
+    else:
+        X_test_array = np.array(X_test)
+        n_features = X_test_array.shape[1] if len(X_test_array.shape) > 1 else len(X_test_array)
+
+    # Try common wine dataset feature names as fallback
+    wine_feature_names = [
+        'fixed_acidity', 'volatile_acidity', 'citric_acid', 'residual_sugar',
+        'chlorides', 'free_sulfur_dioxide', 'total_sulfur_dioxide', 'density',
+        'pH', 'sulphates', 'alcohol', 'quality'
+    ]
+
+    # If we have 11 or 12 features (typical for wine dataset), use wine names
+    if n_features in [11, 12]:
+        feature_names = wine_feature_names[:n_features]
+        print(f"📊 Using wine dataset feature names: {len(feature_names)} features")
+        return feature_names
+
+    # Alternative common feature names for other datasets
+    common_names = [
+        'feature_1', 'feature_2', 'feature_3', 'feature_4', 'feature_5',
+        'feature_6', 'feature_7', 'feature_8', 'feature_9', 'feature_10',
+        'feature_11', 'feature_12', 'feature_13', 'feature_14', 'feature_15'
+    ]
+
+    if n_features <= len(common_names):
+        feature_names = common_names[:n_features]
+    else:
+        feature_names = [f'feature_{i + 1}' for i in range(n_features)]
+
+    print(f"📊 Using generated feature names: {len(feature_names)} features")
+    return feature_names
+
+
 def _analyze_feature_patterns(visualizer_self, X_misclassified, y_true, y_pred, feature_names):
     """Analyze feature patterns in misclassified examples"""
     feature_scores = []
@@ -159,6 +217,7 @@ def _analyze_feature_patterns(visualizer_self, X_misclassified, y_true, y_pred, 
     feature_scores.sort(key=lambda x: x[1], reverse=True)
 
     return feature_scores
+
 
 def _print_misclassification_summary(visualizer_self, X_test_array, y_test_array):
     """Print summary statistics for misclassifications"""

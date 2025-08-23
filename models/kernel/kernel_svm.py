@@ -279,44 +279,42 @@ class KernelPegasosSVM:
     @classmethod
     def run_kernel_svm_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
         """
-        OPTIMIZED EXPERIMENT: Fast grid search + detailed training for best params
+        Two-phase experiment:
+        1. Grid search with ALL parameters from param_grid (fast, no loss tracking)
+        2. Train final model with best parameters (with loss tracking for plots)
         """
-        print("     📊 Phase 1: Fast parameter search...")
+        print("     📊 Phase 1: Grid search across all parameter combinations...")
 
-        # PHASE 1: FAST GRID SEARCH (no loss tracking, reduced iterations)
-        fast_param_grid = param_grid.copy()
-
-        # Reduce iterations for grid search to speed up
-        if 'max_iter' in fast_param_grid:
-            fast_param_grid['max_iter'] = [min(500, max(fast_param_grid['max_iter']))]
-
-        # Use fast grid search (no loss tracking)
+        # PHASE 1: COMPLETE GRID SEARCH with all your parameters
+        # Use fast mode (no loss tracking) to test all combinations quickly
         best_params, best_score = grid_search(
             X_train, y_train,
-            lambda **kwargs: cls(track_losses=False, **kwargs),  # Fast mode
-            fast_param_grid
+            lambda **kwargs: cls(track_losses=False, verbose=False, **kwargs),  # Fast mode
+            param_grid  # Use your COMPLETE param_grid as specified
         )
 
-        print(f"     🎯 Best parameters found: {best_params}")
-        print(f"     📊 Phase 2: Detailed training with loss tracking...")
+        print(f"     📊 Phase 2: Training final model with best parameters and loss tracking...")
 
-        # PHASE 2: DETAILED TRAINING with best parameters (WITH loss tracking)
-        model = cls(
+        # PHASE 2: Train final model with best parameters AND loss tracking
+        final_model = cls(
             kernel=best_params["kernel"],
             lambda_=best_params["lambda_"],
-            max_iter=best_params.get("max_iter", 2000),  # Use full iterations for final model
-            track_losses=True,  # Enable detailed loss tracking
-            random_state=12,
-            verbose=True
+            max_iter=best_params["max_iter"],
+            track_losses=True,  # Enable loss tracking for plots
+            verbose=True,  # Enable verbose for final training
+            random_state=12  # Fixed seed for reproducibility
         )
 
-        # Train with full iterations and loss tracking
-        model.fit(X_train, y_train)
-        preds = model.predict(X_test)
+        # Train final model with loss tracking enabled
+        final_model.fit(X_train, y_train)
 
-        print(f"📊 Number of support vectors: {len(model.support_vectors)}")
-        print(f"📈 Loss tracking: {len(model.losses)} loss points recorded")
+        # Make predictions
+        preds = final_model.predict(X_test)
 
+        print(f"📊 Number of support vectors: {len(final_model.support_vectors)}")
+        print(f"📈 Loss tracking: {len(final_model.losses)} loss points recorded")
+
+        # Comprehensive evaluation
         results = {'ksvm_custom': comprehensive_evaluation(y_test, preds, "Kernel SVM (Pegasos)")}
 
-        return results, model
+        return results, final_model
