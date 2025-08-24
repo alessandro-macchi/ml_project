@@ -1,5 +1,7 @@
 import os
-from data_processing.loaders import load_and_combine_data
+import random
+import numpy as np
+from data_processing import load_and_combine_data
 from training import run_experiment
 from evaluation import generate_final_summary_report
 from utils import reset_directory_manager
@@ -9,6 +11,10 @@ def main():
     """
     Main function orchestrating the entire ML pipeline
     """
+
+    random_seed = 6
+    random.seed(random_seed)
+    np.random.seed(random_seed)
 
     # Reset and initialize the centralized directory manager for this run
     print("📁 Initializing centralized directory management...")
