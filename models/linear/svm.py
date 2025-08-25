@@ -16,7 +16,7 @@ class SVMClassifierScratch:
         self.weights = None
         self.bias = 0
         self.random_state = np.random.RandomState(random_state)
-        self.losses = []  # ADD THIS LINE to track losses
+        self.losses = []
 
     def fit(self, X, y, max_iter=1000):
         X = np.array(X)
