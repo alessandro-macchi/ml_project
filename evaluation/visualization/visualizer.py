@@ -1,24 +1,13 @@
-"""
-This module provides essential visualization functions for machine learning model evaluation:
-1. Training loss curves
-2. Performance metrics comparison
-3. Confusion matrices
-4. ROC curves comparison
-5. Precision-recall curves comparison
-"""
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 import os
 from datetime import datetime
 
-# Import plot functions
 from .plots.diagnostic_plots import plot_roc_curves, plot_precision_recall_curves
 from .plots.feature_analysis import plot_misclassifications, _analyze_feature_patterns, _print_misclassification_summary
 from .plots.loss_curves import plot_loss_curves
 from .plots.performance_metrics import plot_metrics_comparison, plot_confusion_matrices
-from .plots.learning_curves import LearningCurveAnalyzer
 
 warnings.filterwarnings('ignore')
 plt.style.use('default')
@@ -26,8 +15,6 @@ sns.set_palette("husl")
 
 
 class ModelVisualizer:
-    """Streamlined visualization class for essential ML model evaluation plots"""
-
     def __init__(self, save_dir=None):
         """Initialize the visualizer with directory management"""
         if save_dir is None:
@@ -50,7 +37,6 @@ class ModelVisualizer:
         self.model_names = {}
 
     def _save_figure(self, filename, dpi=300, bbox_inches='tight'):
-        """Save figure with timestamp"""
         if not hasattr(self, '_save_enabled') or not self._save_enabled:
             return None
 
@@ -68,7 +54,6 @@ class ModelVisualizer:
             return None
 
     def add_model_results(self, model_key, trained_model, evaluation_results, model_name=None):
-        """Add a trained model and its results for visualization"""
         self.models[model_key] = trained_model
         self.results[model_key] = evaluation_results
 
@@ -76,7 +61,6 @@ class ModelVisualizer:
             model_name = model_key.replace('_', ' ').title().replace('Custom', '(Custom)')
         self.model_names[model_key] = model_name
 
-    # Plot method wrappers that pass self correctly to the modular functions
     def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
         """Plot ROC curves for all models"""
         return plot_roc_curves(self, X_test, y_test, figsize, save_plots)
@@ -101,7 +85,6 @@ class ModelVisualizer:
         """Plot 2x2 confusion matrices"""
         return plot_confusion_matrices(self, X_test, y_test, figsize, save_plots)
 
-    # Helper methods for misclassification analysis (wrappers to modular functions)
     def _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names):
         """Analyze feature patterns in misclassified examples"""
         return _analyze_feature_patterns(self, X_misclassified, y_true, y_pred, feature_names)
@@ -111,8 +94,7 @@ class ModelVisualizer:
         return _print_misclassification_summary(self, X_test_array, y_test_array)
 
     def create_essential_plots(self, X_test, y_test, save_plots=True, save_dir=None):
-        """Generate all essential visualization plots"""
-        print("\n🎨 GENERATING ESSENTIAL MODEL VISUALIZATIONS")
+        print("\n🎨 Generating Model Visualizations")
         print("=" * 60)
 
         if save_dir:
@@ -154,21 +136,6 @@ class ModelVisualizer:
 
 def create_model_visualizations(models_dict, results_dict, X_test, y_test, model_names=None,
                               save_plots=True, save_dir=None):
-    """
-    Convenience function to create all essential visualizations
-
-    Args:
-        models_dict (dict): Dictionary of trained models {model_key: model_object}
-        results_dict (dict): Dictionary of evaluation results {model_key: results_dict}
-        X_test: Test features
-        y_test: Test labels
-        model_names (dict): Optional custom model names {model_key: display_name}
-        save_plots (bool): Whether to save plots (default: True)
-        save_dir (str): Directory to save plots (if None, uses centralized manager)
-
-    Returns:
-        ModelVisualizer: The visualizer object
-    """
     visualizer = ModelVisualizer(save_dir=save_dir)
 
     for model_key in models_dict.keys():

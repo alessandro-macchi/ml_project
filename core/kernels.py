@@ -8,8 +8,6 @@ def polynomial_kernel(x, y, degree=3, coef0=1):
     return (np.dot(x, y) + coef0) ** degree
 
 class NamedKernel:
-    """Wrapper per dare nomi leggibili ai kernel"""
-
     def __init__(self, kernel, name):
         self.kernel = kernel
         self.name = name
@@ -22,7 +20,6 @@ class NamedKernel:
 
     @staticmethod
     def prepare_param_grid(param_grid):
-        """Convert kernel parameters to named kernels for grid search"""
         param_grid = param_grid.copy()
 
         gamma_values = param_grid.pop('gamma_values', None)
@@ -37,7 +34,6 @@ class NamedKernel:
 
 
 def create_named_kernels(gamma_values, degree_values, coef0_values):
-    """Create named kernels for grid search"""
     kernels = []
 
     for gamma in gamma_values:

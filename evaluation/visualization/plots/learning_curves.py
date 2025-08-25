@@ -12,13 +12,10 @@ sns.set_palette("husl")
 
 
 class LearningCurveAnalyzer:
-    """Streamlined overfitting analysis focused on learning curves"""
-
     def __init__(self, save_dir=None):
-        """Initialize analyzer with directory management"""
         if save_dir is None:
             try:
-                from utils.directory_management import get_directory_manager
+                from utils import get_directory_manager
                 dir_manager = get_directory_manager()
                 self.save_dir = dir_manager.plots_dir
                 print(f"📁 Using centralized plots directory: {self.save_dir}")
@@ -48,12 +45,10 @@ class LearningCurveAnalyzer:
         self.X_test = np.array(X_test)
         self.y_test = np.array(y_test)
 
-        # Add models with proper naming
         for model_key, model in models_dict.items():
             model_name = self._get_model_display_name(model_key, model_names)
             self.models[model_key] = {'model': model, 'name': model_name}
 
-        # Generate learning curves for each model
         for model_key in self.models.keys():
             print(f"\n📈 Generating learning curves for {self.models[model_key]['name']}...")
             self.learning_curves[model_key] = self._generate_learning_curves(model_key)
@@ -61,7 +56,6 @@ class LearningCurveAnalyzer:
         print("\n✅ Learning curve analysis complete!")
 
     def _get_model_display_name(self, model_key, model_names):
-        """Get display name for model with fallback logic"""
         if model_names and model_key in model_names:
             return model_names[model_key]
 
@@ -74,7 +68,6 @@ class LearningCurveAnalyzer:
         return name_mapping.get(model_key, model_key.replace('_', ' ').title())
 
     def _generate_learning_curves(self, model_key):
-        """Generate learning curves to analyze overfitting - FIXED VERSION"""
         try:
             model = self.models[model_key]['model']
             train_sizes = np.linspace(0.1, 1.0, 10)
@@ -90,25 +83,18 @@ class LearningCurveAnalyzer:
                 if n_train < 10:
                     continue
 
-                # CRITICAL FIX: Create proper train/validation split
-                # Use sklearn-style train_test_split approach
                 indices = np.arange(n_samples)
                 np.random.shuffle(indices)
 
-                # Split: 80% for training subset, 20% for training evaluation
                 split_point = int(0.8 * n_train)
                 train_indices = indices[:split_point]
                 train_eval_indices = indices[split_point:n_train]
 
-                # Ensure we have enough data for evaluation
                 if len(train_eval_indices) < 5:
-                    # If not enough data for separate evaluation, use original approach
-                    # but with smaller evaluation set to reduce overlap
                     train_indices = indices[:n_train]
-                    eval_size = min(50, n_train // 4)  # Use 25% or max 50 samples
+                    eval_size = min(50, n_train // 4)
                     train_eval_indices = indices[n_train:n_train + eval_size]
 
-                    # If we don't have enough remaining data, skip this size
                     if len(train_eval_indices) < 5:
                         continue
 
@@ -119,12 +105,10 @@ class LearningCurveAnalyzer:
                 y_train_eval = self.y_train[train_eval_indices]
 
                 try:
-                    # Create fresh model instance
                     subset_model = self._create_fresh_model(model_key, model)
                     if hasattr(subset_model, 'fit'):
                         subset_model.fit(X_train_subset, y_train_subset)
 
-                    # Evaluate on separate training evaluation set and validation set
                     train_pred = subset_model.predict(X_train_eval)
                     val_pred = subset_model.predict(self.X_test)
 
@@ -154,9 +138,7 @@ class LearningCurveAnalyzer:
             return {'available': False, 'error': str(e)}
 
     def _create_fresh_model(self, model_key, original_model):
-        """Create a fresh instance of the model with same parameters"""
         try:
-            # Import models from the existing structure
             if 'lr' in model_key.lower():
                 from models.linear.logistic_regression import LogisticRegressionScratch
                 return LogisticRegressionScratch(
@@ -198,7 +180,6 @@ class LearningCurveAnalyzer:
             return original_model
 
     def _save_plot_safely(self, filename, dpi=300, bbox_inches='tight'):
-        """Save plot with timestamp and proper error handling"""
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             full_filename = f"{filename}_{timestamp}.png"
@@ -213,10 +194,8 @@ class LearningCurveAnalyzer:
             return None
 
     def plot_learning_curves(self, figsize=(16, 12), save_plots=False):
-        """Create detailed learning curves for all models"""
         print("📈 Creating Learning Curves...")
 
-        # Filter models with learning curve data
         models_with_curves = {
             k: v for k, v in self.learning_curves.items()
             if v['available']
@@ -247,17 +226,14 @@ class LearningCurveAnalyzer:
             train_scores = learning_curve['train_scores']
             val_scores = learning_curve['val_scores']
 
-            # Plot learning curves
             ax.plot(train_sizes, train_scores, 'o-', color='blue', linewidth=3,
                     markersize=6, label='Training Score', alpha=0.8)
             ax.plot(train_sizes, val_scores, 'o-', color='red', linewidth=3,
                     markersize=6, label='Validation Score', alpha=0.8)
 
-            # Fill area between curves to show gap
             ax.fill_between(train_sizes, train_scores, val_scores,
                             alpha=0.2, color='red' if np.mean(train_scores) > np.mean(val_scores) + 0.05 else 'green')
 
-            # Add trend lines
             if len(train_sizes) > 3:
                 z_train = np.polyfit(train_sizes, train_scores, 1)
                 p_train = np.poly1d(z_train)
@@ -267,7 +243,6 @@ class LearningCurveAnalyzer:
                 p_val = np.poly1d(z_val)
                 ax.plot(train_sizes, p_val(train_sizes), "--", alpha=0.8, color='red', linewidth=1)
 
-            # Formatting
             model_name = self.models[model_key]['name'].replace(' (Custom)', '')
             ax.set_xlabel('Training Set Size', fontweight='bold')
             ax.set_ylabel('Accuracy Score', fontweight='bold')
@@ -276,7 +251,6 @@ class LearningCurveAnalyzer:
             ax.grid(True, alpha=0.3)
             ax.set_ylim(0, 1.05)
 
-            # Add gap annotation
             if len(train_scores) > 0 and len(val_scores) > 0:
                 final_gap = train_scores[-1] - val_scores[-1]
                 max_gap = np.max(train_scores - val_scores)
@@ -287,7 +261,6 @@ class LearningCurveAnalyzer:
                         bbox=dict(boxstyle='round', facecolor=gap_color, alpha=0.3),
                         fontsize=10, fontweight='bold')
 
-        # Hide unused subplots
         for i in range(len(models_with_curves), len(axes)):
             if i < len(axes):
                 axes[i].set_visible(False)
@@ -302,30 +275,13 @@ class LearningCurveAnalyzer:
 
 def integrate_overfitting_analysis(trained_models, X_train, y_train, X_test, y_test, model_names, save_plots=True,
                                    save_dir=None):
-    """
-    Integration function for existing project structure
-
-    Args:
-        trained_models (dict): Dictionary of trained models
-        X_train, y_train: Training data
-        X_test, y_test: Test data
-        model_names (dict): Model display names
-        save_plots (bool): Whether to save plots
-        save_dir (str): Directory to save plots
-
-    Returns:
-        LearningCurveAnalyzer: Analyzer with learning curve analysis
-    """
     print("🔗 INTEGRATING LEARNING CURVE ANALYSIS")
     print("=" * 40)
 
-    # Create analyzer with centralized directory management
     analyzer = LearningCurveAnalyzer(save_dir=save_dir)
 
-    # Run analysis
     analyzer.analyze_all_models(trained_models, X_train, y_train, X_test, y_test, model_names)
 
-    # Create learning curve plots
     analyzer.plot_learning_curves(save_plots=save_plots)
 
     return analyzer

@@ -25,10 +25,9 @@ class SVMClassifierScratch:
         n_samples, n_features = X.shape
         self.weights = self.random_state.normal(0, 0.01, n_features)
         self.bias = 0
-        self.losses = []  # RESET losses for new training
+        self.losses = []
 
         for t in range(1, max_iter + 1):
-            # Sample a random training example
             i = self.random_state.randint(0, n_samples)
             x_i = X[i]
             y_i = y[i]
@@ -42,8 +41,7 @@ class SVMClassifierScratch:
             else:
                 self.weights = (1 - eta * self.lambda_) * self.weights
 
-            # ADD LOSS COMPUTATION: Compute SVM hinge loss every few iterations
-            if t % 50 == 0 or t == max_iter:  # Every 50 iterations to avoid slowdown
+            if t % 50 == 0 or t == max_iter:
                 # Compute hinge loss: max(0, 1 - y_i * (w^T x_i + b))
                 scores = np.dot(X, self.weights) + self.bias
                 margins = y * scores
@@ -59,13 +57,12 @@ class SVMClassifierScratch:
     def predict(self, X):
         X = np.array(X)
         scores = np.dot(X, self.weights) + self.bias
-        return np.where(scores >= 0, 1, -1)  # Return {-1, +1} labels
+        return np.where(scores >= 0, 1, -1)
 
     @classmethod
     def run_svm_experiment(cls, X_train, y_train, X_test, y_test, param_grid):
         best_params, best_score = grid_search(X_train, y_train, cls, param_grid)
 
-        # ✅ Use unique random state for this model
         model = cls(lambda_=best_params["lambda_"], random_state=15)
         model.fit(X_train, y_train, max_iter=best_params["max_iter"])
         preds = model.predict(X_test)

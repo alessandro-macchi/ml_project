@@ -1,7 +1,6 @@
 import pandas as pd
 
 def load_and_combine_data(red_path: str, white_path: str) -> pd.DataFrame:
-    """Load red and white wine datasets and combine them"""
     red = pd.read_csv(red_path, sep=';')
     white = pd.read_csv(white_path, sep=';')
 

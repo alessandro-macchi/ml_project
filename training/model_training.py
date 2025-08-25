@@ -3,17 +3,11 @@ from hyperparameter_tuning import get_parameter_grids
 
 
 def train_all_models(X_train, y_train, X_test, y_test):
-    """
-    Train all models with their respective hyperparameter grids
-
-    Returns:
-        tuple: (results_dict, trained_models_dict)
-    """
+    """Train all models with their respective hyperparameter grids"""
 
     results = {}
     trained_models = {}
 
-    # Define parameter grids
     param_grids = get_parameter_grids()
 
     # LOGISTIC REGRESSION

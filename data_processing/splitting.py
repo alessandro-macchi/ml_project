@@ -3,7 +3,6 @@ from core import euclidean_distance
 
 
 def custom_train_test_split(X, y, test_size=0.2, random_state=None, stratify=None):
-    """Basic train-test split with optional stratification"""
     if random_state is not None:
         np.random.seed(random_state)
 
@@ -32,7 +31,7 @@ def custom_train_test_split(X, y, test_size=0.2, random_state=None, stratify=Non
 
 
 def generate_synthetic_samples(X_minority_df, N, k=5):
-    X_minority = X_minority_df.values  # convert once for easier math
+    X_minority = X_minority_df.values
     synthetic_samples = []
 
     for _ in range(N):

@@ -5,7 +5,6 @@ from .kernels import NamedKernel
 
 
 def cross_validate(X, y, model_class, model_params, k_folds=5, epochs=1000):
-    # Ensure consistent data types
     if hasattr(X, 'values'):
         X_array = X.values
     else:
@@ -34,7 +33,6 @@ def cross_validate(X, y, model_class, model_params, k_folds=5, epochs=1000):
         try:
             model = model_class(**model_params)
 
-            # Try common `fit()` variants
             try:
                 model.fit(X_train, y_train, max_iter=epochs)
             except TypeError:
@@ -60,24 +58,9 @@ def cross_validate(X, y, model_class, model_params, k_folds=5, epochs=1000):
     return mean_score
 
 def grid_search(X, y, model_class, param_grid, k_folds=5):
-    """
-    Generic grid search using cross-validation with improved logging.
-
-    Parameters:
-        X, y: Dataset
-        model_class: Model class to instantiate
-        param_grid: Dictionary of parameter lists, e.g. {'lambda_': [...], 'max_iter': [...]}
-                   For kernel models, can include 'gamma_values', 'degree_values', 'coef0_values'
-                   which will be converted to named kernel objects automatically.
-        k_folds: Number of CV folds
-
-    Returns:
-        best_params, best_score
-    """
     best_score = -1
     best_params = None
 
-    # Let NamedKernel handle the kernel parameter conversion
     param_grid = NamedKernel.prepare_param_grid(param_grid)
 
     param_names = list(param_grid.keys())
@@ -93,7 +76,6 @@ def grid_search(X, y, model_class, param_grid, k_folds=5):
             current_combo[param_names[index]] = value
             yield from generate_combinations(values, current_combo, index + 1)
 
-    # Count total combinations for progress tracking
     total_combinations = 1
     for values in param_values:
         total_combinations *= len(values)
@@ -108,7 +90,6 @@ def grid_search(X, y, model_class, param_grid, k_folds=5):
         model_params = {k: v for k, v in params.items() if k != "max_iter" and k != "epochs"}
         epochs = params.get("max_iter") or params.get("epochs", 1000)
 
-        # Create user-friendly parameter display
         param_display = format_params_display(params)
 
         print(f"\n🧪 [{combination_count}/{total_combinations}] Testing: {param_display}")
@@ -147,7 +128,6 @@ def format_params_display(params):
 
     for key, value in params.items():
         if key in ["kernel", "kernel_fn"] and hasattr(value, 'name'):
-            # NamedKernel objects have a .name attribute
             formatted_parts.append(f"{key}={value.name}")
         elif isinstance(value, float):
             formatted_parts.append(f"{key}={value:.4f}")

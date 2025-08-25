@@ -2,7 +2,6 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_s
 
 
 def comprehensive_evaluation(y_true, y_pred, model_name="Model"):
-    """Comprehensive evaluation for imbalanced classification"""
     acc = accuracy_score(y_true, y_pred)
     bal_acc = balanced_accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)

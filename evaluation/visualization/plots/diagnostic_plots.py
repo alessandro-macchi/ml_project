@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc, precision_recall_curve
 
 def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
-    """Plot ROC curves for all models"""
     print("📈 Creating ROC Curves...")
     self._save_enabled = save_plots
 
@@ -12,7 +11,6 @@ def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
 
     for i, (model_key, model) in enumerate(self.models.items()):
         try:
-            # Get prediction probabilities
             if hasattr(model, 'predict_proba'):
                 y_proba = model.predict_proba(X_test)
             elif hasattr(model, 'decision_function'):
@@ -51,7 +49,6 @@ def plot_roc_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
     plt.show()
 
 def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plots=False):
-    """Plot Precision-Recall curves for all models"""
     print("📈 Creating Precision-Recall Curves...")
     self._save_enabled = save_plots
 
@@ -60,7 +57,6 @@ def plot_precision_recall_curves(self, X_test, y_test, figsize=(12, 8), save_plo
 
     for i, (model_key, model) in enumerate(self.models.items()):
         try:
-            # Get prediction probabilities
             if hasattr(model, 'predict_proba'):
                 y_proba = model.predict_proba(X_test)
             elif hasattr(model, 'decision_function'):

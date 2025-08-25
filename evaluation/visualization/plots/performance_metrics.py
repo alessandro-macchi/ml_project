@@ -4,13 +4,11 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 
 def plot_metrics_comparison(self, figsize=(15, 7), save_plots=False):
-    """Create metrics comparison plots for accuracy, precision/recall, and f1-score"""
     print("📊 Creating Metrics Comparison...")
     self._save_enabled = save_plots
 
     fig, axes = plt.subplots(1, 3, figsize=figsize)
 
-    # Prepare data
     model_keys = list(self.results.keys())
     model_display_names = [self.model_names[key].replace(' (Custom)', '') for key in model_keys]
 
@@ -29,7 +27,6 @@ def plot_metrics_comparison(self, figsize=(15, 7), save_plots=False):
     axes[0].grid(True, alpha=0.3)
     axes[0].set_ylim(0, 1)
 
-    # Add value labels
     for bar in bars1:
         height = bar.get_height()
         axes[0].annotate(f'{height:.3f}',
@@ -85,7 +82,6 @@ def plot_metrics_comparison(self, figsize=(15, 7), save_plots=False):
     plt.show()
 
 def plot_confusion_matrices(self, X_test, y_test, figsize=(12, 8), save_plots=False):
-    """Plot 2x2 confusion matrices"""
     print("🔍 Creating Confusion Matrices...")
     self._save_enabled = save_plots
 
@@ -109,7 +105,6 @@ def plot_confusion_matrices(self, X_test, y_test, figsize=(12, 8), save_plots=Fa
         y_pred = model.predict(X_test)
         cm = confusion_matrix(y_test, y_pred)
 
-        # Plot heatmap with counts only
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
                     xticklabels=['Low Quality (0)', 'High Quality (1)'],
                     yticklabels=['Low Quality (0)', 'High Quality (1)'],
@@ -120,7 +115,6 @@ def plot_confusion_matrices(self, X_test, y_test, figsize=(12, 8), save_plots=Fa
         ax.set_xlabel('Predicted')
         ax.set_ylabel('Actual')
 
-    # Hide unused subplots
     for i in range(len(self.models), len(axes)):
         if i < len(axes):
             axes[i].set_visible(False)
