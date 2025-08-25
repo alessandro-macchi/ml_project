@@ -1,5 +1,4 @@
 import os
-import random
 import numpy as np
 from data_processing import load_and_combine_data
 from training import run_experiment
@@ -8,9 +7,7 @@ from utils import reset_directory_manager
 
 
 def main():
-    random_seed = 6
-    random.seed(random_seed)
-    np.random.seed(random_seed)
+    np.random.seed(6)
 
     print("📁 Initializing centralized directory management...")
     reset_directory_manager()
